@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N 03-analise-ancestralidade
-#PBS -e scripts/03-analise-ancestralidade.err
-#PBS -o scripts/03-analise-ancestralidade.log
+#PBS -e 03-analise-ancestralidade.err
+#PBS -o 03-analise-ancestralidade.log
 #PBS -q workq
 
 cd "$PBS_O_WORKDIR"
@@ -14,7 +14,7 @@ echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
-/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript scripts/03_analise_ancestralidade.R
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 03_analise_ancestralidade.R
 
 EXIT_CODE=$?
 echo "=========================================="

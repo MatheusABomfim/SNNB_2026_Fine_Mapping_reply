@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N 01-filtrar-mvp
-#PBS -e scripts/01-filtrar-mvp.err
-#PBS -o scripts/01-filtrar-mvp.log
+#PBS -e 01-filtrar-mvp.err
+#PBS -o 01-filtrar-mvp.log
 #PBS -q workq
 
 cd "$PBS_O_WORKDIR"
@@ -13,7 +13,7 @@ echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
-/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript scripts/01_filtrar_mvp.R
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 01_filtrar_mvp.R
 
 EXIT_CODE=$?
 echo "=========================================="

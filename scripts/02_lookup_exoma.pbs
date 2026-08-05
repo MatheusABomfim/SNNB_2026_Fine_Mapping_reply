@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N 02-lookup-exoma
-#PBS -e scripts/02-lookup-exoma.err
-#PBS -o scripts/02-lookup-exoma.log
+#PBS -e 02-lookup-exoma.err
+#PBS -o 02-lookup-exoma.log
 #PBS -q workq
 
 cd "$PBS_O_WORKDIR"
@@ -14,7 +14,7 @@ echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
-/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript scripts/02_lookup_exoma.R
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 02_lookup_exoma.R
 
 EXIT_CODE=$?
 echo "=========================================="

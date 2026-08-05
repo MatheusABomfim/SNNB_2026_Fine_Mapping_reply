@@ -80,13 +80,14 @@ Ver `pipeline_gwas/README.md` para detalhes.
 ### 2. Validação MVP × exoma
 
 ```bash
-# no cluster, dentro do diretório do repo
-qsub scripts/01_filtrar_mvp.pbs
-qsub scripts/02_lookup_exoma.pbs   # depende do 01 (bc_coding.csv)
-qsub scripts/03_analise_ancestralidade.pbs   # depende do 02
-qsub scripts/04_tabelas_finais.pbs           # depende do 02
-qsub scripts/05_locus_plots.pbs              # depende do 02
-qsub scripts/06_scatter_plot.pbs             # depende do 02
+# no cluster, dentro de scripts/ (os PBS usam caminhos relativos a esse dir)
+cd scripts
+qsub 01_filtrar_mvp.pbs
+qsub 02_lookup_exoma.pbs   # depende do 01 (bc_coding.csv)
+qsub 03_analise_ancestralidade.pbs   # depende do 02
+qsub 04_tabelas_finais.pbs           # depende do 02
+qsub 05_locus_plots.pbs              # depende do 02
+qsub 06_scatter_plot.pbs             # depende do 02
 ```
 
 Ou diretamente (sem PBS), no cluster:
@@ -100,9 +101,10 @@ Rscript scripts/05_locus_plots.R
 Rscript scripts/06_scatter_plot.R
 ```
 
-Os `.pbs` de `scripts/` usam o env `quali` e rodam a partir da raiz do repo
-(`cd "$PBS_O_WORKDIR"`), então devem ser submetidos da raiz. A ordem é
-importante: 02–06 consomem `resultados/tabelas/lookup_completo.csv` (output do 02).
+Os `.pbs` de `scripts/` usam o env `quali` e rodam a partir de `scripts/`
+(`cd "$PBS_O_WORKDIR"`), então devem ser submetidos **dentro de `scripts/`**.
+A ordem é importante: 02–06 consomem `resultados/tabelas/lookup_completo.csv`
+(output do 02).
 
 Os caminhos dos dados e o mapeamento de colunas ficam configurados no bloco
 `CONFIG` no topo de cada script — preencha conforme os headers reais dos arquivos.

@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N 05-locus-plots
-#PBS -e scripts/05-locus-plots.err
-#PBS -o scripts/05-locus-plots.log
+#PBS -e 05-locus-plots.err
+#PBS -o 05-locus-plots.log
 #PBS -q workq
 
 cd "$PBS_O_WORKDIR"
@@ -14,7 +14,7 @@ echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
-/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript scripts/05_locus_plots.R
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 05_locus_plots.R
 
 EXIT_CODE=$?
 echo "=========================================="

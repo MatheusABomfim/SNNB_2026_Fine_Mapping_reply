@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N 06-scatter-plot
-#PBS -e scripts/06-scatter-plot.err
-#PBS -o scripts/06-scatter-plot.log
+#PBS -e 06-scatter-plot.err
+#PBS -o 06-scatter-plot.log
 #PBS -q workq
 
 cd "$PBS_O_WORKDIR"
@@ -14,7 +14,7 @@ echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
-/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript scripts/06_scatter_plot.R
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 06_scatter_plot.R
 
 EXIT_CODE=$?
 echo "=========================================="
