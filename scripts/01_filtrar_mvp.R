@@ -11,7 +11,7 @@
 # ─────────────────────────── CONFIG ───────────────────────────
 # Ajuste os caminhos e o mapeamento de colunas conforme os headers reais.
 
-MVP_INPUT <- "dados/mvp/fine_mapping_GCST90479802.xlsx"  # ou ".tsv.gz"
+MVP_INPUT <- "/storage4/matheusbomfim/SNNB_2026_Fine_mapping/fine_mapping_GCST90479802.xlsx"  # ou ".tsv.gz"
 # Se usar o .tsv.gz (delimitado por tab), mude para TRUE:
 MVP_IS_TSV_GZ <- FALSE
 
@@ -47,12 +47,16 @@ OUT_DIR <- "dados/mvp"
 
 # Caminhos relativos à raiz do repo (a raiz é o pai do dir deste script),
 # para o script funcionar rodado de qualquer CWD (ex.: via PBS em scripts/).
+# Caminhos absolutos são mantidos como estão.
+abs_path <- function(p) {
+  if (grepl("^/", p)) p else file.path(REPO_ROOT, p)
+}
 args0 <- commandArgs(trailingOnly = FALSE)
 fidx <- grep("^--file=", args0)
 SCRIPT_DIR <- if (length(fidx)) dirname(sub("^--file=", "", args0[fidx])) else getwd()
 REPO_ROOT <- normalizePath(file.path(SCRIPT_DIR, ".."))
-MVP_INPUT <- file.path(REPO_ROOT, MVP_INPUT)
-OUT_DIR   <- file.path(REPO_ROOT, OUT_DIR)
+MVP_INPUT <- abs_path(MVP_INPUT)
+OUT_DIR   <- abs_path(OUT_DIR)
 
 # Detectar formato de entrada: se readxl não estiver disponível e o .xlsx não
 # existir, tenta o .tsv.gz (mesmo arquivo em formato tab separado, sem readxl).
