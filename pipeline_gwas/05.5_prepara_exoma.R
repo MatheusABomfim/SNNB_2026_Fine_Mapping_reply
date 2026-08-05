@@ -53,32 +53,46 @@ exoma <- ssf[, .(
 
 # ── Anotar rsID a partir do ID column do VCF ──
 exoma[, RSID := ""]
-if (CASE_VCF != "" && file.exists(CASE_VCF)) {
+bcftools_bin <- Sys.which("bcftools")
+if (CASE_VCF != "" && file.exists(CASE_VCF) && nzchar(bcftools_bin)) {
   cat("Anotando rsID a partir do VCF...\n")
   # bcftools query extrai CHROM, POS, REF, ALT, ID em uma linha por variante.
   # Para variantes multi-alélicas a ID se aplica à variante; usamos CHROM:POS:REF:ALT
   # para casar com variant_id do SSF (mesma normalização do quali-workflow).
+  # O formato precisa ser citado (shQuote) porque system2() não cita args e o
+  # shell corrompe os escapes \t / \n (erro "no such tag INFO/IDn").
   vcf_tmp <- tempfile(fileext = ".tsv")
-  system2("bcftools", args = c("query", "-f", "%CHROM\\t%POS\\t%REF\\t%ALT\\t%ID\\n",
-                               CASE_VCF), stdout = vcf_tmp)
+  fmt <- "%CHROM\\t%POS\\t%REF\\t%ALT\\t%ID\\n"
+  status <- system2("bcftools",
+    args = c("query", "-f", shQuote(fmt, type = "sh"), CASE_VCF),
+    stdout = vcf_tmp)
   vcf_ann <- fread(vcf_tmp, header = FALSE,
                    col.names = c("chrom", "pos", "ref", "alt", "id"))
-  # normalizar alelos (toupper, como no quali-workflow) e remover "chr" do cromossomo
-  vcf_ann[, chrom := gsub("^chr", "", chrom, ignore.case = TRUE)]
-  vcf_ann[, ref := toupper(ref)]
-  vcf_ann[, alt := toupper(alt)]
-  vcf_ann[, varid := paste(chrom, pos, ref, alt, sep = ":")]
-  # pegar a primeira ID (rs) por variante
-  vcf_ann <- vcf_ann[id != ".", .(varid, id = unlist(tstrsplit(id, "[,;]", keep = 1))[1]), by = varid]
-  vcf_ann <- unique(vcf_ann, by = "varid")
+  if (status != 0L || is.null(vcf_ann) || nrow(vcf_ann) == 0L) {
+    warning("Anotação rsID falhou (bcftools status ", status,
+            " ou saída vazia) — coluna RSID vazia. Use match por posição no 02_lookup_exoma.R ou anote depois.")
+  } else {
+    # normalizar alelos (toupper, como no quali-workflow) e remover "chr" do cromossomo
+    vcf_ann[, chrom := gsub("^chr", "", chrom, ignore.case = TRUE)]
+    vcf_ann[, ref := toupper(ref)]
+    vcf_ann[, alt := toupper(alt)]
+    vcf_ann[, varid := paste(chrom, pos, ref, alt, sep = ":")]
+    # pegar a primeira ID (rs) por variante
+    vcf_ann <- vcf_ann[id != ".", .(varid, id = unlist(tstrsplit(id, "[,;]", keep = 1))[1]), by = varid]
+    vcf_ann <- unique(vcf_ann, by = "varid")
 
-  exoma[, varid := paste(CHR, BP, A1, A2, sep = ":")]
-  exoma[vcf_ann, RSID := i.id, on = "varid"]
-  exoma[, varid := NULL]
+    exoma[, varid := paste(CHR, BP, A1, A2, sep = ":")]
+    exoma[vcf_ann, RSID := i.id, on = "varid"]
+    exoma[, varid := NULL]
+    cat("  rsID anotados:", sum(exoma$RSID != ""), "/", nrow(exoma), "\n")
+  }
   unlink(vcf_tmp)
-  cat("  rsID anotados:", sum(exoma$RSID != ""), "/", nrow(exoma), "\n")
 } else {
-  warning("CASE_VCF não encontrado — coluna RSID vazia. Use match por posição no 02_lookup_exoma.R ou anote depois.")
+  if (CASE_VCF == "" || !file.exists(CASE_VCF)) {
+    warning("CASE_VCF não encontrado — coluna RSID vazia. Use match por posição no 02_lookup_exoma.R ou anote depois.")
+  } else if (!nzchar(bcftools_bin)) {
+    warning("bcftools não encontrado no PATH — coluna RSID vazia. Rode no env quali (micromamba run -n quali Rscript 05.5_prepara_exoma.R).")
+  }
 }
 
 # ── Ordenar colunas e salvar ──
