@@ -16,6 +16,7 @@ OUT_TABELAS <- "resultados/tabelas"
 
 # Janelas (bp) ao redor do sinal index para contar SNPs do exoma
 WINDOWS <- c(10000, 100000, 250000, 500000, 1000000)
+WIN_NAMES <- paste0("n_snps_", formatC(WINDOWS, format = "d"))
 
 # Colunas
 MVP_CHR  <- "CHR"
@@ -84,7 +85,7 @@ cobertura <- mvp2[, {
     Locus = Locus,
     dist_snp_min_bp = dist_min,
     posicao_exata_no_exoma = pos_exata
-  ), setNames(as.list(counts), paste0("n_snps_", WINDOWS)))
+  ), setNames(as.list(counts), WIN_NAMES))
 }, by = row_id][, row_id := NULL]
 
 cat(sprintf("Sinais MVP: %d | SNPs exoma: %d\n", nrow(mvp), nrow(exoma)))
@@ -93,18 +94,19 @@ cat(sprintf("Posição exata presente no exoma: %d/%d\n",
 
 # 4. Resumo por janela
 cat("\n--- Cobertura por janela ---\n")
-for (w in WINDOWS) {
-  col <- paste0("n_snps_", w)
+for (i in seq_along(WINDOWS)) {
+  col <- WIN_NAMES[i]
   n_cob <- sum(cobertura[[col]] > 0)
   cat(sprintf("  janela ±%s kb: %d/%d sinais com >=1 SNP do exoma\n",
-              formatC(w / 1000, format = "d"), n_cob, nrow(cobertura)))
+              formatC(WINDOWS[i] / 1000, format = "d"), n_cob, nrow(cobertura)))
 }
 cat(sprintf("\nDistância mediana ao SNP exômico mais próximo: %s bp\n",
             ifelse(all(is.na(cobertura$dist_snp_min_bp)), "NA",
                    formatC(median(cobertura$dist_snp_min_bp, na.rm = TRUE), format = "d"))))
 
 # 5. Sinais sem nenhum SNP do exoma mesmo em ±1 Mb
-uncovered <- cobertura[is.na(dist_snp_min_bp) | n_snps_1000000 == 0]
+col_max <- WIN_NAMES[which.max(WINDOWS)]
+uncovered <- cobertura[is.na(dist_snp_min_bp) | get(col_max) == 0]
 if (nrow(uncovered) > 0) {
   cat("\n--- Sinais SEM cobertura do exoma (nem ±1 Mb) ---\n")
   print(uncovered[, .(RSID, CHR, BP38, Locus)])
