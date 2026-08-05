@@ -42,7 +42,7 @@ for CHR in $(seq 1 22); do
   else
     echo "  baixando chr${CHR}.b38.gmap.gz..."
     wget -q -O "$OUT" \
-      "https://raw.githubusercontent.com/odelaneau/shapeit5/master/resources/maps/genetic_maps.b38/chr${CHR}.b38.gmap.gz" \
+      "https://raw.githubusercontent.com/odelaneau/GLIMPSE/master/maps/genetic_maps.b38/chr${CHR}.b38.gmap.gz" \
       || echo "    AVISO: falha no download chr${CHR} (baixe manualmente para $OUT)"
   fi
 done
@@ -53,4 +53,4 @@ echo "Env:      micromamba run -n $ENV_NAME <cmd>"
 echo "Mapas:    $MAPS_DIR/chr<CHR>.b38.gmap.gz"
 echo ""
 echo "Se o download dos mapas falhou, baixe manualmente de:"
-echo "  https://github.com/odelaneau/shapeit5/tree/master/resources/maps/genetic_maps.b38"
+echo "  https://github.com/odelaneau/GLIMPSE/tree/master/maps/genetic_maps.b38"
