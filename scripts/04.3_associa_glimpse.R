@@ -28,7 +28,7 @@ ENV_IMP    <- "imputacao"     # env com bcftools
 MVP_SIGNAL    <- "dados/mvp/bc_signal.csv"
 GLIMPSE_LIG   <- "resultados/glimpse/ligate"
 GLIMPSE_PHASED<- "resultados/glimpse/phased"
-BAMS_TXT      <- "resultados/glimpse/bams.txt"   # só fallback (path por linha)
+BAMS_TXT      <- "resultados/glimpse/bams.txt"   # só fallback (path<SPACE>sample)
 PCA_EIGENVEC  <- "/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod/tmp/pca.eigenvec"
 KEEP_CONTROLS <- "/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod/tmp/keep_controls.txt"
 OUT_TABELAS   <- "resultados/tabelas"
@@ -85,8 +85,10 @@ case_ids <- tryCatch(bcftools("query", "-l", lig_files[1]),
                      error = function(e) character(0))
 if (length(case_ids) == 0) {
   warning("BCF sem samples; usando bams.txt (basename) como IDs dos casos")
-  bam_paths <- readLines(BAMS_TXT, warn = FALSE)
+  bam_lines <- readLines(BAMS_TXT, warn = FALSE)
+  bam_paths <- sub("\\s.*$", "", bam_lines)
   case_ids <- sub("\\.[^.]*$", "", basename(bam_paths))
+  case_ids <- sub("\\.md$", "", case_ids)
 }
 cat(sprintf("Casos: %d\n", length(case_ids)))
 

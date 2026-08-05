@@ -5,7 +5,7 @@
 #PBS -q workq
 # 04.2_imputa_glimpse.pbs
 # Imputação (GLIMPSE2) dos sinais fine-mapped do MVP (não-codantes) nas 33
-# regiões usando os BAMs recalibrated dos casos do exoma phs000822.
+# regiões usando os CRAMs (*.md.cram, work/ do Nextflow do Sarek) dos casos.
 #
 # Fluxo (tutorial GLIMPSE2):
 #   1) 04.1_prepara_glimpse.R (env quali)      → regioes.txt, sites.txt, bams.txt
@@ -15,6 +15,7 @@
 #
 # Env: 'imputacao' (shapeit5, glimpse-bio, bcftools, samtools, plink2).
 #      R (04.1_prepara_glimpse.R) roda no env 'quali'.
+# CRAMs: GLIMPSE2_phase usa --fasta (CONFIG REF_FASTA) para decodificá-los.
 # Rodar dentro de scripts/:  qsub 04.2_imputa_glimpse.pbs
 # ─────────────────────────── CONFIG ───────────────────────────
 MICROMAMBA="/storage2/matheusbomfim/projects/micromamba/bin/micromamba"
@@ -25,6 +26,11 @@ ENV_R="quali"            # R (para o 04.1_prepara_glimpse.R)
 KG_PREFIX="/storage4/matheusbomfim/quali/1kg/1kg_hg38_autosomes"
 MAPS_DIR="/storage4/matheusbomfim/quali/1kg/maps_b38"
 
+# Referência hg38 (fasta) — obrigatória para o GLIMPSE2_phase decodificar os
+# CRAMs dos casos (opção --fasta, faidx-indexed). CONFIRMAR o caminho real no
+# cluster (refgen/ do Sarek; os CRAMs foram criados com essa referência).
+REF_FASTA="/storage4/matheusbomfim/programas/sarek/refgen/Homo_sapiens.GRCh38.dna.fa"
+
 # Diretório de trabalho (relativo à raiz do repo, submetido de scripts/)
 WORK_ROOT="resultados/glimpse"
 
@@ -34,6 +40,7 @@ THREADS=8
 # CWD = PBS_O_WORKDIR (scripts/), raiz do repo = dirname
 cd "$PBS_O_WORKDIR" || exit 1
 export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+[ -s "$REF_FASTA" ] || { echo "ERRO: REF_FASTA não encontrado: $REF_FASTA"; exit 1; }
 REPO_ROOT="$(dirname "$(pwd)")"
 WORK_ROOT="$REPO_ROOT/$WORK_ROOT"
 mkdir -p "$WORK_ROOT"/{chr_vcf,phased,chunks,split,impute,ligate}
@@ -121,10 +128,14 @@ done < "$WORK_ROOT/regioes.txt"
 echo "[4/5] Imputação GLIMPSE2_phase (bams.txt)..."
 BAMS="$WORK_ROOT/bams.txt"
 [ -s "$BAMS" ] || { echo "  ERRO: bams.txt ausente"; exit 1; }
-# GLIMPSE2_phase exige índice (.bai) para cada BAM da lista
+# GLIMPSE2_phase exige índice: .crai para CRAM, .bai para BAM
 NOMISSING=0
-while read -r B; do
-  [ -s "$B.bai" ] || { echo "  ERRO: índice ausente: $B.bai"; NOMISSING=1; }
+while read -r B _; do
+  case "$B" in
+    *.cram) IDX="$B.crai" ;;
+    *)      IDX="$B.bai" ;;
+  esac
+  [ -s "$IDX" ] || { echo "  ERRO: índice ausente: $IDX"; NOMISSING=1; }
 done < "$BAMS"
 [ "$NOMISSING" -eq 0 ] || exit 1
 NSAMP=$(wc -l < "$BAMS")
@@ -140,7 +151,9 @@ while read -r CHR START END; do
     OUT="$WORK_ROOT/impute/imp_${CHRO}_${RS}_${RE}.bcf"
     if [ ! -s "$OUT" ]; then
       echo "  GLIMPSE2_phase ${CHRO}:${RS}-${RE}..."
-      IMP GLIMPSE2_phase --bam-list "$BAMS" --reference "$BIN" \
+      # --reference = painel de referência binário (do split_reference);
+      # --fasta     = referência hg38 para decodificar os CRAMs dos casos.
+      IMP GLIMPSE2_phase --bam-list "$BAMS" --reference "$BIN" --fasta "$REF_FASTA" \
           --output "$OUT" --threads "$THREADS"
     fi
   done < "$CHUNKS"

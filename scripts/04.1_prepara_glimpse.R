@@ -2,14 +2,14 @@
 # 04.1_prepara_glimpse.R
 # Prepara os inputs do passo 04 (imputação GLIMPSE2 dos sinais MVP no exoma):
 #   1) janelas por cromossomo (± WINDOW_MB ao redor de cada sinal, fundidas)
-#   2) lista de BAMs recalibrated (Sarek) dos casos, com ID de amostra
+#   2) lista de CRAMs (Sarek, work/ do Nextflow) dos casos, 1 por amostra
 #
 # Input :
 #   - dados/mvp/bc_signal.csv            (output do 01_filtrar_mvp.R)
-#   - BAMs recalibrated do Sarek (path no CONFIG)
+#   - CRAMs *.md.cram do Sarek (path no CONFIG)
 # Output: resultados/glimpse/regioes.txt (CHR\tstart\tend, janelas fundidas)
 #         resultados/glimpse/sites.txt   (CHR:POS exatos dos sinais)
-#         resultados/glimpse/bams.txt    (1 path por linha — GLIMPSE2_phase)
+#         resultados/glimpse/bams.txt    (path<SPACE>sample — GLIMPSE2_phase)
 #         resultados/glimpse/bam_samples.tsv (path<TAB>sample, para conferência)
 
 # ─────────────────────────── CONFIG ───────────────────────────
@@ -17,9 +17,17 @@ MVP_SIGNAL <- "dados/mvp/bc_signal.csv"
 OUT_GLIMPSE <- "resultados/glimpse"
 
 WINDOW_MB <- 1        # meia-janela (bp) ao redor de cada sinal → janela total = 2x
-BAM_DIR <- "/storage4/matheusbomfim/programas/sarek/results_CA_Mama_DBGAP_New/variant_calling/preprocessing/recalibrated"
-BAM_PATTERN <- ".*\\.recal\\.bam$"   # regex; ajuste conforme os nomes reais
+# BAMs/CRAMs dos casos: saída do Sarek está no work/ do Nextflow (não há
+# diretório 'preprocessing/recalibrated' publicado). Usamos os *.md.cram
+# (pós-MarkDuplicates, 1 por amostra). O mesmo CRAM pode aparecer em mais de um
+# hash do work/ — deduplicamos por nome de amostra abaixo.
+BAM_DIR <- "/storage4/matheusbomfim/programas/sarek/work/nextflow_work"
+BAM_PATTERN <- ".*\\.md\\.cram$"   # regex; ajuste conforme os nomes reais
 BAM_RECURSIVE <- TRUE
+# Suaviza o nome da amostra: GLIMPSE2 usa a 2ª coluna do bams.txt como sample
+# ID no BCF de saída — precisa casar com os IIDs do GWAS (ex.: SRR2943808).
+# Remove o sufixo de MarkDuplicates ('.md') do nome do arquivo.
+SAMPLE_STRIP <- "\\.md$"   # regex do sufixo a remover do basename
 
 # Colunas do bc_signal.csv
 MVP_CHR  <- "CHR"
@@ -73,22 +81,33 @@ sites <- mvp[, paste0("chr", CHR, ":", BP)]
 writeLines(sites, file.path(OUT_GLIMPSE, "sites.txt"))
 cat(sprintf("Sites: %d\n", length(sites)))
 
-# 3. BAMs recalibrated (GLIMPSE2_phase exige 1 path por linha)
+# 3. CRAMs dos casos (GLIMPSE2_phase exige 1 arquivo por linha; aceita CRAM)
 if (!dir.exists(BAM_DIR)) {
   warning("BAM_DIR não encontrado: ", BAM_DIR, " — bams.txt não gerado.")
   quit(status = 1)
 }
 bams <- list.files(BAM_DIR, pattern = BAM_PATTERN, recursive = BAM_RECURSIVE, full.names = TRUE)
-bams <- grep("\\.bai$", bams, value = TRUE, invert = TRUE)
+# descarta índices (.crai/.bai) e duplicatas do work/ do Nextflow (mesmo
+# arquivo pode existir em mais de um hash); escolhe 1 path por amostra
+bams <- bams[!grepl("\\.crai$|\\.bai$", bams)]
 if (length(bams) == 0) {
-  warning("Nenhum BAM com o padrão '", BAM_PATTERN, "' em ", BAM_DIR)
+  warning("Nenhum CRAM com o padrão '", BAM_PATTERN, "' em ", BAM_DIR)
   quit(status = 1)
 }
-bam_tbl <- data.table(path = normalizePath(bams),
-                      sample = sub("\\.[^.]*$", "", basename(bams)))
-# Lista de paths (coluna única) para o GLIMPSE2_phase --bam-list
-writeLines(bam_tbl$path, file.path(OUT_GLIMPSE, "bams.txt"))
-# Mapa path<TAB>sample (referência; IDs reais vêm do @RG do BAM)
+bam_tbl <- data.table(path = bams, sample = basename(bams))
+# SRR2943808.md.cram -> SRR2943808 (remove extensão + sufixo de MarkDuplicates)
+bam_tbl[, sample := sub("\\.[^.]*$", "", sample)]
+bam_tbl[, sample := sub(SAMPLE_STRIP, "", sample)]
+setorder(bam_tbl, sample, path)
+n_dups <- sum(duplicated(bam_tbl$sample))
+if (n_dups > 0) {
+  cat(sprintf("  aviso: %d amostra(s) com múltiplos CRAMs no work/ — mantendo o 1º path\n", n_dups))
+}
+bam_tbl <- bam_tbl[!duplicated(sample)]
+bam_tbl[, path := normalizePath(path)]
+# GLIMPSE2_phase --bam-list: 1 arquivo por linha, 2ª coluna (espaço) = sample
+fwrite(bam_tbl, file.path(OUT_GLIMPSE, "bams.txt"), sep = " ", col.names = FALSE)
+# Mapa path<TAB>sample (referência)
 fwrite(bam_tbl, file.path(OUT_GLIMPSE, "bam_samples.tsv"), sep = "\t", col.names = FALSE)
-cat(sprintf("BAMs: %d (padrão %s)\n", nrow(bam_tbl), BAM_PATTERN))
+cat(sprintf("CRAMs: %d (padrão %s)\n", nrow(bam_tbl), BAM_PATTERN))
 cat("OK. Inputs prontos em", OUT_GLIMPSE, "\n")

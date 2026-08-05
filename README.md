@@ -127,10 +127,13 @@ Cada sub-passo também pode rodar isolado via `qsub 04.1_prepara_glimpse.pbs`,
 
 ### 3. Imputação GLIMPSE2 (passo 04) — notas
 
-- Pré-requisitos no cluster: BAMs recalibrated dos casos (Sarek), painel
-  `1kg_hg38_autosomes` (hg38), mapas genéticos b38 (baixados no setup), env `imputacao`.
+- Pré-requisitos no cluster: CRAMs `*.md.cram` dos casos (Sarek, no `work/` do
+  Nextflow — não há `preprocessing/recalibrated` publicado), painel
+  `1kg_hg38_autosomes` (hg38), mapas genéticos b38 (baixados no setup), env `imputacao`
+  e a referência hg38 (`REF_FASTA` — o `GLIMPSE2_phase --fasta` decodifica os CRAMs).
+  O `04.1_prepara_glimpse.R` deduplica os CRAMs do `work/` (1 por amostra).
 - `04.1_prepara_glimpse.R` gera as janelas ±1 Mb por sinal, os sítios exatos e a
-  lista de BAMs (`resultados/glimpse/`).
+  lista de CRAMs (`resultados/glimpse/`).
 - `04.2_imputa_glimpse.pbs` fasa o 1KG por cromossomo (SHAPEIT5) e imputa as 33
   regiões com GLIMPSE2 (chunk → split_reference → phase → ligate).
 - `04.3_associa_glimpse.R` extrai as dosagens dos casos, genótipos dos controles
