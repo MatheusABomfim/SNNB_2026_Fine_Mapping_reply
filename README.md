@@ -41,7 +41,8 @@ MVP fine-mapping (GCST90479802)
   ├─► 03_analise_ancestralidade.R   (AFR / AMR / EUR)
   ├─► 04_tabelas_finais.R           tabelas 1-4 do artigo
   ├─► 05_locus_plots.R              locus plots dos top loci
-  └─► 06_scatter_plot.R             scatter direção do efeito MVP × exoma
+  ├─► 06_scatter_plot.R             scatter direção do efeito MVP × exoma
+  └─► 07_verifica_cobertura_exoma.R checagem de cobertura das regiões no exoma
 
 MAGMA (gene-level)  →  colaborador (etapa futura), output em resultados/magma/
 ```
@@ -88,6 +89,7 @@ qsub 03_analise_ancestralidade.pbs   # depende do 02
 qsub 04_tabelas_finais.pbs           # depende do 02
 qsub 05_locus_plots.pbs              # depende do 02
 qsub 06_scatter_plot.pbs             # depende do 02
+qsub 07_verifica_cobertura_exoma.pbs # cobertura das regiões MVP no exoma (diagnóstico)
 ```
 
 Ou diretamente (sem PBS), no cluster:

@@ -1,0 +1,26 @@
+#!/bin/bash
+#PBS -N 07-verifica-cobertura
+#PBS -e 07-verifica-cobertura.err
+#PBS -o 07-verifica-cobertura.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "07_verifica_cobertura_exoma.R (cobertura das regioes MVP no exoma)"
+echo "  input : dados/mvp/bc_signal.csv, gwas/gwas_prod/exoma_sumstats.txt"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 07_verifica_cobertura_exoma.R
+
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: 07_verifica_cobertura_exoma.R completed at $(date)"
+else
+    echo "FAILURE: 07_verifica_cobertura_exoma.R exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="
