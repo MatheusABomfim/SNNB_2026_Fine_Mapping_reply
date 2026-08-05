@@ -124,6 +124,15 @@ O passo 04 usa os dois: `04.2_imputa_glimpse.pbs` roda a imputação com `imputa
 chama `04.1_prepara_glimpse.R`/`04.3_associa_glimpse.R` com `quali`.
 Cada sub-passo também pode rodar isolado via `qsub 04.1_prepara_glimpse.pbs`,
 `qsub 04.2_imputa_glimpse.pbs` e `qsub 04.3_associa_glimpse.pbs`.
+**Importante:** o `04.3_associa_glimpse.pbs` só pode ser submetido **depois** que o
+`04.2` terminar (ele já roda a associação no passo 6 — não re-submeta o 04.3
+enquanto o 04.2 estiver rodando, senão falha com "Nenhum BCF ligado"). Para
+encadear com dependência de jobs:
+
+```bash
+JOB=$(qsub 04.2_imputa_glimpse.pbs)
+qsub -W depend=afterok:$JOB 04.3_associa_glimpse.pbs
+```
 
 ### 3. Imputação GLIMPSE2 (passo 04) — notas
 

@@ -101,7 +101,9 @@ bam_tbl[, sample := sub(SAMPLE_STRIP, "", sample)]
 setorder(bam_tbl, sample, path)
 n_dups <- sum(duplicated(bam_tbl$sample))
 if (n_dups > 0) {
-  cat(sprintf("  aviso: %d amostra(s) com múltiplos CRAMs no work/ — mantendo o 1º path\n", n_dups))
+  n_uniq <- length(unique(bam_tbl$sample))
+  cat(sprintf("  aviso: %d duplicata(s) no work/ do Nextflow (%d amostra(s) únicas) — mantendo o 1º path por amostra\n",
+              n_dups, n_uniq))
 }
 bam_tbl <- bam_tbl[!duplicated(sample)]
 bam_tbl[, path := normalizePath(path)]
