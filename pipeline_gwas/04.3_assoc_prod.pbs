@@ -11,12 +11,16 @@ export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
 echo "=========================================="
 echo "GWAS Association (PRODUCAO)"
 echo "  --firth --pca-match --match-k 1 --n-pcs 3"
+echo "  outdir: gwas/gwas_prod (05_gwas_ssf.pbs já lê deste caminho)"
 echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
+PROD_DIR="/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod"
+mkdir -p "$PROD_DIR"
+
 /storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 04_gwas_assoc.R \
-  --firth --pca-match --match-k 1 --n-pcs 3
+  --firth --pca-match --match-k 1 --n-pcs 3 --outdir "$PROD_DIR"
 
 EXIT_CODE=$?
 echo "=========================================="

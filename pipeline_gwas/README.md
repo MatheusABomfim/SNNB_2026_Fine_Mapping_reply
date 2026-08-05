@@ -34,7 +34,7 @@ VCF Sarek (joint-calling, VEP+AlphaMissense)
 | Etapa | Output |
 |---|---|
 | 04 | `gwas/<timestamp>/SRR_gwas.assoc` (tabela limpa), plots, `gwas_report.txt` |
-| 04.3 | `gwas/gwas_prod/SRR_gwas.assoc` + `target.{bed,bim,fam}` |
+| 04.3 | `gwas/gwas_prod/SRR_gwas.assoc` + `target.{bed,bim,fam}` — escrita direta via `--outdir gwas_prod` (sem cópia manual) |
 | 05 | `gwas/gwas_prod/gwas_ssf.tsv` + `-meta.yaml` |
 | 05.5 | `gwas/gwas_prod/exoma_sumstats.txt` → copiar para `dados/exoma/exoma_sumstats.txt` |
 

@@ -39,6 +39,12 @@ n_pca_pcs <- if (pca_match) 50L else max(10L, n_pcs)
 pc_cols_assoc <- paste0("PC", 1:n_pcs)
 covar_col_range <- if (n_pcs == 1L) "3" else paste0("3-", 2L + n_pcs)
 covar_str <- paste0("PC1-PC", n_pcs)
+outdir_flag <- NULL
+outdir_idx <- which(args == "--outdir")
+if (length(outdir_idx) > 0) {
+  if (outdir_idx == length(args)) stop("--outdir requires an argument")
+  outdir_flag <- args[outdir_idx + 1]
+}
 has_genesis <- requireNamespace("GENESIS", quietly = TRUE) &&
                requireNamespace("GWASTools", quietly = TRUE)
 
@@ -63,7 +69,12 @@ if (debug) {
 } else {
   vcf_file <- vcf_input
   kg_prefix <- kg_panel
-  output_dir <- file.path(base_dir, "gwas", format(Sys.time(), "%Y%m%d_%H%M%S"))
+  if (!is.null(outdir_flag)) {
+    output_dir <- outdir_flag
+    cat("  out:", output_dir, "\n\n")
+  } else {
+    output_dir <- file.path(base_dir, "gwas", format(Sys.time(), "%Y%m%d_%H%M%S"))
+  }
 }
 
 kg_dir <- dirname(kg_prefix)
