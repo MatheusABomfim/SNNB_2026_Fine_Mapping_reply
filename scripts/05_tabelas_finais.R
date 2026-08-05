@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# 04_tabelas_finais.R
+# 05_tabelas_finais.R
 # Monta as tabelas principais do artigo a partir do lookup e do MAGMA.
 #
 # Input :
@@ -44,7 +44,7 @@ suppressPackageStartupMessages(library(dplyr))
 if (!dir.exists(OUT_TABELAS)) dir.create(OUT_TABELAS, recursive = TRUE)
 
 lookup <- read.csv(LOOKUP_CSV, stringsAsFactors = FALSE, check.names = FALSE)
-cat("== 04_tabelas_finais.R ==\n")
+cat("== 05_tabelas_finais.R ==\n")
 
 # ─── Tabela 1: Sinais com direção consistente ───
 tabela1 <- lookup %>%

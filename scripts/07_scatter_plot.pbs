@@ -1,26 +1,26 @@
 #!/bin/bash
-#PBS -N 03-analise-ancestralidade
-#PBS -e 03-analise-ancestralidade.err
-#PBS -o 03-analise-ancestralidade.log
+#PBS -N 07-scatter-plot
+#PBS -e 07-scatter-plot.err
+#PBS -o 07-scatter-plot.log
 #PBS -q workq
 
 cd "$PBS_O_WORKDIR"
 export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
 
 echo "=========================================="
-echo "03_analise_ancestralidade.R (consistencia por populacao)"
+echo "07_scatter_plot.R (scatter direcao do efeito MVP x exoma)"
 echo "  input : resultados/tabelas/lookup_completo.csv"
 echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
-/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 03_analise_ancestralidade.R
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 07_scatter_plot.R
 
 EXIT_CODE=$?
 echo "=========================================="
 if [ $EXIT_CODE -eq 0 ]; then
-    echo "SUCCESS: 03_analise_ancestralidade.R completed at $(date)"
+    echo "SUCCESS: 07_scatter_plot.R completed at $(date)"
 else
-    echo "FAILURE: 03_analise_ancestralidade.R exited with code $EXIT_CODE at $(date)"
+    echo "FAILURE: 07_scatter_plot.R exited with code $EXIT_CODE at $(date)"
 fi
 echo "=========================================="

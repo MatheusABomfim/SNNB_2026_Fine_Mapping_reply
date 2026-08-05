@@ -38,11 +38,11 @@ MVP fine-mapping (GCST90479802)
 02_lookup_exoma.R  ──►  match por rsID nas sumstats do exoma
   │                     classificação: Replicada / Direcao_consistente / Discordante / Nao_genotipada
   │                     └─► lookup_completo.csv
-  ├─► 03_analise_ancestralidade.R   (AFR / AMR / EUR)
-  ├─► 04_tabelas_finais.R           tabelas 1-4 do artigo
-  ├─► 05_locus_plots.R              locus plots dos top loci
-  ├─► 06_scatter_plot.R             scatter direção do efeito MVP × exoma
-  └─► 07_verifica_cobertura_exoma.R checagem de cobertura das regiões no exoma
+  ├─► 03_verifica_cobertura_exoma.R checagem de cobertura das regiões no exoma
+  ├─► 04_analise_ancestralidade.R   (AFR / AMR / EUR)
+  ├─► 05_tabelas_finais.R           tabelas 1-4 do artigo
+  ├─► 06_locus_plots.R              locus plots dos top loci
+  └─► 07_scatter_plot.R             scatter direção do efeito MVP × exoma
 
 MAGMA (gene-level)  →  colaborador (etapa futura), output em resultados/magma/
 ```
@@ -55,7 +55,7 @@ dados/
 ├── mvp/          # GCST90479802.tsv.gz, fine_mapping_GCST90479802.xlsx (no cluster)
 ├── exoma/        # exoma_sumstats.txt (output do 05.5), genes.annot
 └── referencias/  # gene_loc.txt, LD reference (MAGMA futuro)
-scripts/          # validação MVP×exoma: 01_filtrar_mvp.R ... 06_scatter_plot.R
+scripts/          # validação MVP×exoma: 01_filtrar_mvp.R ... 07_scatter_plot.R
 resultados/
 ├── tabelas/      # tabela1_consistentes, tabela2_discordantes, tabela3_novos_candidatos, tabela4_magma_genes
 ├── figuras/      # locus_plot_*.png, scatter_direcao.png
@@ -85,11 +85,11 @@ Ver `pipeline_gwas/README.md` para detalhes.
 cd scripts
 qsub 01_filtrar_mvp.pbs
 qsub 02_lookup_exoma.pbs   # depende do 01 (bc_signal.csv)
-qsub 03_analise_ancestralidade.pbs   # depende do 02
-qsub 04_tabelas_finais.pbs           # depende do 02
-qsub 05_locus_plots.pbs              # depende do 02
-qsub 06_scatter_plot.pbs             # depende do 02
-qsub 07_verifica_cobertura_exoma.pbs # cobertura das regiões MVP no exoma (diagnóstico)
+qsub 03_verifica_cobertura_exoma.pbs # cobertura das regiões MVP no exoma (diagnóstico)
+qsub 04_analise_ancestralidade.pbs   # depende do 02
+qsub 05_tabelas_finais.pbs           # depende do 02
+qsub 06_locus_plots.pbs              # depende do 02
+qsub 07_scatter_plot.pbs             # depende do 02
 ```
 
 Ou diretamente (sem PBS), no cluster:
@@ -97,10 +97,10 @@ Ou diretamente (sem PBS), no cluster:
 ```bash
 Rscript scripts/01_filtrar_mvp.R
 Rscript scripts/02_lookup_exoma.R
-Rscript scripts/03_analise_ancestralidade.R
-Rscript scripts/04_tabelas_finais.R
-Rscript scripts/05_locus_plots.R
-Rscript scripts/06_scatter_plot.R
+Rscript scripts/04_analise_ancestralidade.R
+Rscript scripts/05_tabelas_finais.R
+Rscript scripts/06_locus_plots.R
+Rscript scripts/07_scatter_plot.R
 ```
 
 Os `.pbs` de `scripts/` usam o env `quali` e rodam a partir de `scripts/`
@@ -119,5 +119,5 @@ Os caminhos dos dados e o mapeamento de colunas ficam configurados no bloco
 - A pasta do repo no cluster é `/storage4/matheusbomfim/SNNB_2026_Fine_Mapping_scripts`.
 - `pipeline_gwas/` reutiliza o painel 1KG já configurado pelo quali-workflow
   (`/storage4/matheusbomfim/quali/1kg/1kg_hg38_exome`) e a instalação LDSC.
-- MAGMA gene analysis será desenvolvido por colaborador; `04_tabelas_finais.R`
+- MAGMA gene analysis será desenvolvido por colaborador; `05_tabelas_finais.R`
   já lê `resultados/magma/exoma.genes.out` quando disponível.

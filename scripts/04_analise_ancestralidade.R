@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# 03_analise_ancestralidade.R
+# 04_analise_ancestralidade.R
 # Análise por população (AFR / AMR / EUR / EAS) da consistência da direção
 # do efeito entre MVP e exoma.
 #
@@ -35,7 +35,7 @@ suppressPackageStartupMessages({
 if (!dir.exists(OUT_TABELAS)) dir.create(OUT_TABELAS, recursive = TRUE)
 
 lookup <- read.csv(LOOKUP_CSV, stringsAsFactors = FALSE, check.names = FALSE)
-cat("== 03_analise_ancestralidade.R ==\n")
+cat("== 04_analise_ancestralidade.R ==\n")
 
 # 1. Sumário por população (apenas genotipadas)
 genotipadas <- lookup %>% filter(classificacao != "Nao_genotipada")

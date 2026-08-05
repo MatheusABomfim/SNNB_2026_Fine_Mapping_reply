@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# 07_verifica_cobertura_exoma.R
+# 03_verifica_cobertura_exoma.R
 # Verifica se as regiões dos sinais fine-mapped do MVP (Biological Mother:
 # Cancer, Breast) são cobertas pelo exoma phs000822, medindo os SNPs do exoma
 # dentro de janelas crescentes ao redor de cada sinal (posição hg38 = BP38).
@@ -41,7 +41,7 @@ OUT_TABELAS  <- abs_path(OUT_TABELAS)
 suppressPackageStartupMessages(library(data.table))
 if (!dir.exists(OUT_TABELAS)) dir.create(OUT_TABELAS, recursive = TRUE)
 
-cat("== 07_verifica_cobertura_exoma.R ==\n")
+cat("== 03_verifica_cobertura_exoma.R ==\n")
 mvp <- fread(MVP_SIGNAL)
 exoma <- fread(EXOMA_SUMSTATS)
 

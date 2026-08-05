@@ -1,26 +1,26 @@
 #!/bin/bash
-#PBS -N 05-locus-plots
-#PBS -e 05-locus-plots.err
-#PBS -o 05-locus-plots.log
+#PBS -N 05-tabelas-finais
+#PBS -e 05-tabelas-finais.err
+#PBS -o 05-tabelas-finais.log
 #PBS -q workq
 
 cd "$PBS_O_WORKDIR"
 export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
 
 echo "=========================================="
-echo "05_locus_plots.R (locus plots dos top loci)"
+echo "05_tabelas_finais.R (tabelas 1-4 do artigo)"
 echo "  input : resultados/tabelas/lookup_completo.csv, dados/exoma/"
 echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
-/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 05_locus_plots.R
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 05_tabelas_finais.R
 
 EXIT_CODE=$?
 echo "=========================================="
 if [ $EXIT_CODE -eq 0 ]; then
-    echo "SUCCESS: 05_locus_plots.R completed at $(date)"
+    echo "SUCCESS: 05_tabelas_finais.R completed at $(date)"
 else
-    echo "FAILURE: 05_locus_plots.R exited with code $EXIT_CODE at $(date)"
+    echo "FAILURE: 05_tabelas_finais.R exited with code $EXIT_CODE at $(date)"
 fi
 echo "=========================================="

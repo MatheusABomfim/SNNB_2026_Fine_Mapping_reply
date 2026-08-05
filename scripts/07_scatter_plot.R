@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# 06_scatter_plot.R
+# 07_scatter_plot.R
 # Scatter plot comparando a direção do efeito (beta MVP × beta exoma)
 # para as coding variants genotipadas no exoma.
 #
@@ -32,7 +32,7 @@ suppressPackageStartupMessages({
 if (!dir.exists(OUT_FIGURAS)) dir.create(OUT_FIGURAS, recursive = TRUE)
 
 lookup <- read.csv(LOOKUP_CSV, stringsAsFactors = FALSE, check.names = FALSE)
-cat("== 06_scatter_plot.R ==\n")
+cat("== 07_scatter_plot.R ==\n")
 
 plot_data <- lookup %>%
   filter(classificacao != "Nao_genotipada",
