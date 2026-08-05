@@ -1,0 +1,28 @@
+#!/bin/bash
+#PBS -N 05-gwas-ssf
+#PBS -e 05-gwas-ssf.err
+#PBS -o 05-gwas-ssf.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "GWAS-SSF v1.1.0 Summary Statistics Format"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 05_gwas_ssf.R \
+  --assoc "/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod/SRR_gwas.assoc" \
+  --outdir "/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod" \
+  --amr-only
+
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: GWAS-SSF generated at $(date)"
+else
+    echo "FAILURE: GWAS-SSF exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="

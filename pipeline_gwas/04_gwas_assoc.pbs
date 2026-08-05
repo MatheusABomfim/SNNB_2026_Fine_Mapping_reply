@@ -1,0 +1,23 @@
+#!/bin/bash
+#PBS -N 04-gwas-assoc
+#PBS -e 04-gwas-assoc.err
+#PBS -o 04-gwas-assoc.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+echo "=========================================="
+echo "GWAS Association Job"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "Args: $@"
+echo "=========================================="
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 04_gwas_assoc.R "$@"
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: GWAS completed at $(date)"
+else
+    echo "FAILURE: GWAS exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="

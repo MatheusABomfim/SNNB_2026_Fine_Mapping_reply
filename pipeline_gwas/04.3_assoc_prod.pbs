@@ -1,0 +1,28 @@
+#!/bin/bash
+#PBS -N 04.3-assoc-prod
+#PBS -e 04.3-assoc-prod.err
+#PBS -o 04.3-assoc-prod.log
+#PBS -q workq
+
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "GWAS Association (PRODUCAO)"
+echo "  --firth --pca-match --match-k 2 --n-pcs 2"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 04_gwas_assoc.R \
+  --firth --pca-match --match-k 2 --n-pcs 2
+
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: GWAS production completed at $(date)"
+else
+    echo "FAILURE: GWAS production exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="

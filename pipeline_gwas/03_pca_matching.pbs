@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -N 03-pca-matching
+#PBS -e 03-pca-matching.err
+#PBS -o 03-pca-matching.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+echo "=========================================="
+echo "PCA Matching Job"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 03_pca_matching.R "$@"
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: PCA Matching completed at $(date)"
+else
+    echo "FAILURE: PCA Matching exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="

@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -N 02-subsample-debug
+#PBS -e 02-subsample-debug.err
+#PBS -o 02-subsample-debug.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+echo "=========================================="
+echo "Debug Subsample Generation"
+echo "Start time: $(date)"
+echo "=========================================="
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali bash 02_subsample_debug.sh
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: Subsample generation completed at $(date)"
+else
+    echo "FAILURE: Subsample generation exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="

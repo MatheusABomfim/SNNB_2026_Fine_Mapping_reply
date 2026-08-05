@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -N 01.1-validate-setup
+#PBS -e 01.1-validate-setup.err
+#PBS -o 01.1-validate-setup.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+echo "=========================================="
+echo "Validate 1KG Setup Job"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali bash 01.1_validate_setup.sh
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: Validation passed at $(date)"
+else
+    echo "FAILURE: Validation failed with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="
