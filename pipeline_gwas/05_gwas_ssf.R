@@ -13,10 +13,10 @@ library(data.table)
 
 `%||%` <- function(a, b) if (is.null(a) || length(a) == 0 || (length(a) == 1 && is.na(a))) b else a
 
-# Production run: 455 cases (breast cancer), 910 1KG controls
-# Matching: PCAmatchR 1:2, 50 PCs, weighted Mahalanobis
-# Final params: --firth --pca-match --match-k 2 --n-pcs 2
-# Lambda GC: 1.275, SNPs tested: 33721
+# Production run: 459 cases (breast cancer), 459 1KG controls (1:1)
+# Matching: PCAmatchR 1:1, 50 PCs, weighted Mahalanobis
+# Final params: --firth --pca-match --match-k 1 --n-pcs 3
+# Lambda GC: 1.2417, SNPs tested: 23458
 # ── CONFIG — coorte phs000822 ──
 BASE_DIR <- "/storage4/matheusbomfim/SNNB_2026_Fine_mapping"
 KG_PREFIX <- "/storage4/matheusbomfim/quali/1kg/1kg_hg38_exome"
@@ -237,7 +237,7 @@ meta <- list(
     "GWAS of breast cancer in women (dbGaP phs000822.v1.p1) with 1000 Genomes Phase 3 external controls. ",
     "Cases are predominantly European by genetic ancestry (nearest-neighbor 1KG PC centroid); ",
     "small African and Ad Mixed American fractions. ",
-    "Association: PLINK2 --glm firth --pca-match --match-k 2 --n-pcs 2. ",
+    "Association: PLINK2 --glm firth --pca-match --match-k 1 --n-pcs 3. ",
     "QC: MAF 0.01, GENO 0.2, HWE 1e-6 (controls only), KING 0.088 (controls only)."
   ),
   trait_description = list(trait_desc),
@@ -256,7 +256,7 @@ meta <- list(
   file_type = "GWAS-SSF v1.1",
   data_file_md5sum = file_md5,
   analysis_software = "PLINK2 --glm firth",
-  adjusted_covariates = list("PC1", "PC2"),
+  adjusted_covariates = list("PC1", "PC2", "PC3"),
   # MAF 0.01 applied pre-association (Marees 2018; exome-adjusted)
   minor_allele_freq_lower_limit = 0.01,
   is_harmonised = FALSE,

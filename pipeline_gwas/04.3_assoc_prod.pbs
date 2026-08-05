@@ -10,13 +10,13 @@ export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
 
 echo "=========================================="
 echo "GWAS Association (PRODUCAO)"
-echo "  --firth --pca-match --match-k 2 --n-pcs 2"
+echo "  --firth --pca-match --match-k 1 --n-pcs 3"
 echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
 /storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 04_gwas_assoc.R \
-  --firth --pca-match --match-k 2 --n-pcs 2
+  --firth --pca-match --match-k 1 --n-pcs 3
 
 EXIT_CODE=$?
 echo "=========================================="

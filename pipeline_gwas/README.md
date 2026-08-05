@@ -17,7 +17,7 @@ VCF Sarek (joint-calling, VEP+AlphaMissense)
   ├─► 02_subsample_debug.sh   debug (chr22, 50 cases + 50 1KG)
   ├─► 03_pca_matching.R       PCA + knee plot (diagnóstico)
   ├─► 04_gwas_assoc.R         GWAS: QC → merge → PCA → matching → assoc PLINK2
-  │      (produção: 04.3_assoc_prod.pbs → --firth --pca-match --match-k 2 --n-pcs 2)
+  │      (produção: 04.3_assoc_prod.pbs → --firth --pca-match --match-k 1 --n-pcs 3)
   ├─► 05_gwas_ssf.R           → gwas_ssf.tsv + YAML (GWAS-SSF v1.1)
   └─► 05.5_prepara_exoma.R    → exoma_sumstats.txt (formato do 02_lookup_exoma.R)
 ```
@@ -69,5 +69,5 @@ Rscript scripts/02_lookup_exoma.R
   via `bcftools query` (script 05.5). Variantes sem rs ficam com `RSID=""`.
 - Ambientes Micromamba/PBS: mantidos do quali-workflow
   (`/storage2/matheusbomfim/projects/micromamba`, env `quali`).
-- Parâmetros de produção finais (do quali-workflow):
-  `--firth --pca-match --match-k 2 --n-pcs 2`.
+- Parâmetros de produção finais (match grid 04.2, ponto ótimo k1 pc3):
+  `--firth --pca-match --match-k 1 --n-pcs 3` (λ GC 1.2417).
