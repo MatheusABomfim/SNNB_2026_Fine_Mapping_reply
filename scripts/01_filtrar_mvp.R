@@ -18,6 +18,7 @@ MVP_IS_TSV_GZ <- FALSE
 # Mapeamento de colunas do MVP (preencher com os nomes reais).
 # Use "" se a coluna não existir no arquivo.
 COL_TRAIT     <- "Trait"                # nome do trait/doença (buscar "breast")
+COL_DESC      <- "Description"          # descrição do fenótipo (ex.: "Biological Mother:  Cancer, Breast")
 COL_RSID      <- "RSID"                 # identificador rs
 COL_VEP       <- "VEP Annotation"       # tipo de variante (VEP consequence)
 COL_PIP       <- "Overall PIP"          # posterior inclusion probability
@@ -90,6 +91,11 @@ if (MVP_IS_TSV_GZ) {
                     check.names = FALSE, comment.char = "#")
 } else {
   mvp <- read_excel(MVP_INPUT)
+  # O arquivo tem uma linha de título antes do header real ("Data S1. ..."),
+  # então se a coluna de RSID não aparecer, o header está na linha 2.
+  if (COL_RSID != "" && !COL_RSID %in% colnames(mvp)) {
+    mvp <- read_excel(MVP_INPUT, skip = 1)
+  }
   mvp <- as.data.frame(mvp)
 }
 
@@ -100,12 +106,17 @@ if (COL_RSID != "" && !COL_RSID %in% colnames(mvp)) {
   warning(sprintf("Coluna '%s' (COL_RSID) não encontrada. Verifique o mapeamento.", COL_RSID))
 }
 
-# 2. Filtrar câncer de mama
+# 2. Filtrar câncer de mama (coluna Description = fenótipo da mãe)
 bc <- mvp
-if (COL_TRAIT != "" && COL_TRAIT %in% colnames(mvp)) {
+if (COL_DESC != "" && COL_DESC %in% colnames(mvp)) {
+  bc <- mvp %>% filter(str_detect(tolower(.data[[COL_DESC]]),
+                                  "biological mother\\s*:\\s*cancer\\s*,\\s*breast"))
+} else if (COL_TRAIT != "" && COL_TRAIT %in% colnames(mvp)) {
   bc <- mvp %>% filter(str_detect(tolower(.data[[COL_TRAIT]]), "breast"))
+} else {
+  warning("Nenhuma coluna de fenótipo (Description/Trait) encontrada. Mantendo todos os sinais.")
 }
-cat(sprintf("Sinais de câncer de mama: %d\n", nrow(bc)))
+cat(sprintf("Sinais de câncer de mama (Biological Mother): %d\n", nrow(bc)))
 
 # 3. Filtrar variantes codantes
 if (COL_VEP != "" && COL_VEP %in% colnames(bc)) {
