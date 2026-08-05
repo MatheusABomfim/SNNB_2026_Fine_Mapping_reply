@@ -64,17 +64,15 @@ echo "match_k  n_pcs   N      lamb_R  intercp  atn_ratio  n_sig  n_sugg  Objetiv
 echo "------------------------------------------------------------------------------"
 for k in 1 2 3; do
   for n_pcs in 2 3 4; do
-    line=$(awk -F',' -v k="$k" -v p="$n_pcs" '$2==k && $3==p {printf "%s %s %s %s %s %s %s", $8, $9, $6, $5, $7, $11, $12}' "$LOG")
-    n_cases=$(echo "$line" | awk '{print $1}')
-    n_ctrl=$(echo "$line" | awk '{print $2}')
-    intercept=$(echo "$line" | awk '{print $3}')
-    lambda_r=$(echo "$line" | awk '{print $4}')
-    atten_ratio=$(echo "$line" | awk '{print $5}')
-    n_sig=$(echo "$line" | awk '{print $6}')
-    n_sugg=$(echo "$line" | awk '{print $7}')
+    # IFS='|' read preserva campos vazios (intercept/ratio NA) sem deslocar colunas
+    IFS='|' read -r n_cases n_ctrl intercept lambda_r atten_ratio n_sig n_sugg <<< "$(
+      awk -F',' -v k="$k" -v p="$n_pcs" '$2==k && $3==p {printf "%s|%s|%s|%s|%s|%s|%s", $8, $9, ($6==""?"NA":$6), $5, ($7==""?"NA":$7), $11, $12}' "$LOG"
+    )"
+    n_cases=${n_cases:-0}
+    n_ctrl=${n_ctrl:-0}
     total=$((n_cases + n_ctrl))
     objetivo=$(descricao $k $n_pcs)
-    printf "1:%-7s %-7s %-8s %-8s %-8s %-8s %-6s %-6s %s\n" "$k" "$n_pcs" "$total" "${lambda_r:-NA}" "${intercept:-NA}" "${atten_ratio:-NA}" "${n_sig:-0}" "${n_sugg:-0}" "$objetivo"
+    printf "1:%-7s %-7s %-8s %-8s %-8s %-8s %-6s %-6s %s\n" "$k" "$n_pcs" "$total" "${lambda_r:-NA}" "$intercept" "$atten_ratio" "${n_sig:-0}" "${n_sugg:-0}" "$objetivo"
   done
 done
 echo ""

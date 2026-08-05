@@ -819,20 +819,37 @@ if (nrow(assoc) > 0) {
       )]
       fwrite(ldsc_df, ldsc_file, sep = "\t", quote = FALSE)
 
-      system2("python", args = c(ldsc_py,
+      ldsc_capture <- system2("python", args = c(ldsc_py,
         "--h2", ldsc_file,
         "--ref-ld-chr", ldscores_prefix,
         "--w-ld-chr", ldscores_prefix,
         "--out", file.path(output_dir, "ldsc")
-      ))
+      ), stdout = TRUE, stderr = TRUE)
 
-      ldsc_log_file <- file.path(output_dir, "ldsc.log")
-      if (file.exists(ldsc_log_file)) {
-        log_lines <- readLines(ldsc_log_file)
-        iline <- grep("Intercept", log_lines, value = TRUE)
-        rline <- grep("Ratio", log_lines, value = TRUE)
-        if (length(iline)) ldsc_intercept <- as.numeric(gsub(".*Intercept[^0-9.]*([0-9.]+).*", "\\1", iline[1]))
-        if (length(rline)) ldsc_ratio <- as.numeric(gsub(".*Ratio[^0-9.]*([0-9.]+).*", "\\1", rline[1]))
+      # Extract Intercept/Ratio from the captured LDSC output. Parsing the
+      # subprocess output directly avoids NFS races on /storage4 that made
+      # reading ldsc.log right after exit unreliable (intermittent NA).
+      # Collapsing stdout+stderr keeps the parse robust to the exact return
+      # structure of system2 (per-line vs collapsed, stdout/stderr order).
+      ldsc_console <- paste(unlist(ldsc_capture), collapse = "\n")
+      ldsc_extract <- function(x, key) {
+        rx <- paste0(key, ":\\s*([0-9.]+)")
+        m <- regexec(rx, x)
+        parts <- regmatches(x, m)[[1]]
+        if (length(parts) < 2) return(NA_real_)
+        suppressWarnings(as.numeric(parts[2]))
+      }
+      ldsc_intercept <- ldsc_extract(ldsc_console, "Intercept")
+      ldsc_ratio <- ldsc_extract(ldsc_console, "Ratio")
+
+      # Fallback: parse ldsc.log from disk if the captured output missed it
+      if (is.na(ldsc_intercept) || is.na(ldsc_ratio)) {
+        ldsc_log_file <- file.path(output_dir, "ldsc.log")
+        if (file.exists(ldsc_log_file)) {
+          log_lines <- paste(readLines(ldsc_log_file), collapse = "\n")
+          if (is.na(ldsc_intercept)) ldsc_intercept <- ldsc_extract(log_lines, "Intercept")
+          if (is.na(ldsc_ratio)) ldsc_ratio <- ldsc_extract(log_lines, "Ratio")
+        }
       }
       cat("  LDSC intercept:", ldsc_intercept, "\n")
       cat("  LDSC atten.ratio:", ldsc_ratio, "\n")
