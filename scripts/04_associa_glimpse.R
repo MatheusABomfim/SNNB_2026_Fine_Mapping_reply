@@ -8,10 +8,13 @@
 #   - dados/mvp/bc_signal.csv                  (sinais + Beta/SE/PIP do MVP)
 #   - resultados/glimpse/ligate/imp_*.bcf       (imputação GLIMPSE2 dos casos)
 #   - resultados/glimpse/phased/kg_chr*.vcf.gz  (painel 1KG fasedo → controles)
-#   - resultados/glimpse/bams.txt              (ordem das amostras casos)
 #   - gwas/gwas_prod/tmp/pca.eigenvec           (PCs casos+controles)
 #   - gwas/gwas_prod/tmp/keep_controls.txt      (IIDs dos controles matched)
 # Output: resultados/tabelas/glimpse_associacao.csv
+#
+# Nota: os IDs dos casos são lidos do header do BCF ligado (samples do @RG dos
+# BAMs, na ordem da imputação). A ordem das dosagens em FORMAT/DS é a mesma do
+# header do BCF, então basta alinhar por índice.
 #
 # Nota de direção: a associação é feita para o alelo ALT do painel de referência
 # (mesma orientação das dosagens imputadas). A comparação com o beta do MVP
@@ -25,7 +28,7 @@ ENV_IMP    <- "imputacao"     # env com bcftools
 MVP_SIGNAL    <- "dados/mvp/bc_signal.csv"
 GLIMPSE_LIG   <- "resultados/glimpse/ligate"
 GLIMPSE_PHASED<- "resultados/glimpse/phased"
-BAMS_TXT      <- "resultados/glimpse/bams.txt"
+BAMS_TXT      <- "resultados/glimpse/bams.txt"   # só fallback (path por linha)
 PCA_EIGENVEC  <- "/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod/tmp/pca.eigenvec"
 KEEP_CONTROLS <- "/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod/tmp/keep_controls.txt"
 OUT_TABELAS   <- "resultados/tabelas"
@@ -72,13 +75,20 @@ mvp$CHR_n <- gsub("^chr", "", as.character(mvp[[MVP_CHR]]), ignore.case = TRUE)
 mvp$BP_n  <- as.numeric(mvp[[MVP_BP]])
 cat(sprintf("Sinais MVP: %d\n", nrow(mvp)))
 
-bams <- read.delim(BAMS_TXT, header = FALSE, stringsAsFactors = FALSE)
-case_ids <- bams[[2]]
-cat(sprintf("Casos (bams.txt): %d\n", length(case_ids)))
-
 lig_files <- list.files(GLIMPSE_LIG, pattern = "\\.bcf$", full.names = TRUE)
 if (length(lig_files) == 0) stop("Nenhum BCF ligado em ", GLIMPSE_LIG,
                                  " — rode 04_imputa_glimpse.pbs primeiro")
+
+# IDs dos casos = samples do header do primeiro BCF ligado (ordem da imputação,
+# mesma do FORMAT/DS). Fallback para bams.txt se o BCF não tiver samples.
+case_ids <- tryCatch(bcftools("query", "-l", lig_files[1]),
+                     error = function(e) character(0))
+if (length(case_ids) == 0) {
+  warning("BCF sem samples; usando bams.txt (basename) como IDs dos casos")
+  bam_paths <- readLines(BAMS_TXT, warn = FALSE)
+  case_ids <- sub("\\.[^.]*$", "", basename(bam_paths))
+}
+cat(sprintf("Casos: %d\n", length(case_ids)))
 
 # ── 1. Dosagens imputadas nos casos (FORMAT/DS do GLIMPSE2) ──
 dos_mat <- matrix(NA_real_, nrow = nrow(mvp), ncol = length(case_ids),

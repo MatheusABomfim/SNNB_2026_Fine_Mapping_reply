@@ -117,6 +117,12 @@ done < "$WORK_ROOT/regioes.txt"
 echo "[4/5] Imputação GLIMPSE2_phase (bams.txt)..."
 BAMS="$WORK_ROOT/bams.txt"
 [ -s "$BAMS" ] || { echo "  ERRO: bams.txt ausente"; exit 1; }
+# GLIMPSE2_phase exige índice (.bai) para cada BAM da lista
+NOMISSING=0
+while read -r B; do
+  [ -s "$B.bai" ] || { echo "  ERRO: índice ausente: $B.bai"; NOMISSING=1; }
+done < "$BAMS"
+[ "$NOMISSING" -eq 0 ] || exit 1
 NSAMP=$(wc -l < "$BAMS")
 echo "  Amostras alvo: $NSAMP"
 while read -r CHR START END; do

@@ -9,7 +9,8 @@
 #   - BAMs recalibrated do Sarek (path no CONFIG)
 # Output: resultados/glimpse/regioes.txt (CHR\tstart\tend, janelas fundidas)
 #         resultados/glimpse/sites.txt   (CHR:POS exatos dos sinais)
-#         resultados/glimpse/bams.txt    (path<TAB>sample)
+#         resultados/glimpse/bams.txt    (1 path por linha — GLIMPSE2_phase)
+#         resultados/glimpse/bam_samples.tsv (path<TAB>sample, para conferência)
 
 # ─────────────────────────── CONFIG ───────────────────────────
 MVP_SIGNAL <- "dados/mvp/bc_signal.csv"
@@ -72,7 +73,7 @@ sites <- mvp[, paste0("chr", CHR, ":", BP)]
 writeLines(sites, file.path(OUT_GLIMPSE, "sites.txt"))
 cat(sprintf("Sites: %d\n", length(sites)))
 
-# 3. BAMs recalibrated
+# 3. BAMs recalibrated (GLIMPSE2_phase exige 1 path por linha)
 if (!dir.exists(BAM_DIR)) {
   warning("BAM_DIR não encontrado: ", BAM_DIR, " — bams.txt não gerado.")
   quit(status = 1)
@@ -85,6 +86,9 @@ if (length(bams) == 0) {
 }
 bam_tbl <- data.table(path = normalizePath(bams),
                       sample = sub("\\.[^.]*$", "", basename(bams)))
-fwrite(bam_tbl, file.path(OUT_GLIMPSE, "bams.txt"), sep = "\t", col.names = FALSE)
+# Lista de paths (coluna única) para o GLIMPSE2_phase --bam-list
+writeLines(bam_tbl$path, file.path(OUT_GLIMPSE, "bams.txt"))
+# Mapa path<TAB>sample (referência; IDs reais vêm do @RG do BAM)
+fwrite(bam_tbl, file.path(OUT_GLIMPSE, "bam_samples.tsv"), sep = "\t", col.names = FALSE)
 cat(sprintf("BAMs: %d (padrão %s)\n", nrow(bam_tbl), BAM_PATTERN))
 cat("OK. Inputs prontos em", OUT_GLIMPSE, "\n")
