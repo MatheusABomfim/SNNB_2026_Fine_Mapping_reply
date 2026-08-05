@@ -7,7 +7,6 @@
 #   - resultados/magma/exoma.genes.out         (MAGMA, colaborador — opcional)
 #   - dados/exoma/gwas_dbgap_+vep.tsv          (sumstats exoma)
 # Output: resultados/tabelas/tabela{1,2,3,4}_*.csv
-
 # ─────────────────────────── CONFIG ───────────────────────────
 LOOKUP_CSV <- "resultados/tabelas/lookup_completo.csv"
 MAGMA_OUT  <- "resultados/magma/exoma.genes.out"   # opcional
@@ -43,13 +42,13 @@ if (!dir.exists(OUT_TABELAS)) dir.create(OUT_TABELAS, recursive = TRUE)
 lookup <- read.csv(LOOKUP_CSV, stringsAsFactors = FALSE, check.names = FALSE)
 cat("== 04_tabelas_finais.R ==\n")
 
-# ─── Tabela 1: Coding variants replicadas / direção consistente ───
+# ─── Tabela 1: Sinais com direção consistente ───
 tabela1 <- lookup %>%
-  filter(classificacao %in% c("Replicada_p0.05", "Direcao_consistente")) %>%
+  filter(classificacao == "Direcao_consistente") %>%
   arrange(desc(suppressWarnings(as.numeric(.data[[COL_PIP]])))) %>%
   select(RSID, any_of(c(COL_VEP, COL_PIP, COL_BETA,
                         "BETA_exoma", "PVAL_exoma", "SE_exoma", COL_POP, COL_NOVEL)))
-write.csv(tabela1, file.path(OUT_TABELAS, "tabela1_replicadas.csv"), row.names = FALSE)
+write.csv(tabela1, file.path(OUT_TABELAS, "tabela1_consistentes.csv"), row.names = FALSE)
 
 # ─── Tabela 2: Discordantes ───
 tabela2 <- lookup %>%
@@ -90,17 +89,15 @@ if (file.exists(MAGMA_OUT)) {
 
 # ─── Resumo estatístico ───
 n_genotipadas <- sum(lookup$classificacao != "Nao_genotipada")
-n_consistentes <- sum(lookup$classificacao %in% c("Replicada_p0.05", "Direcao_consistente"))
-n_replicadas <- sum(lookup$classificacao == "Replicada_p0.05")
+n_consistentes <- sum(lookup$classificacao == "Direcao_consistente")
 n_discordantes <- sum(lookup$classificacao == "Discordante")
 
 cat("\n=== RESUMO FINAL ===\n")
-cat(sprintf("Total coding variants no MVP (breast cancer): %d\n", nrow(lookup)))
+cat(sprintf("Total sinais MVP (breast cancer): %d\n", nrow(lookup)))
 cat(sprintf("Genotipadas no exoma: %d (%.1f%%)\n",
             n_genotipadas, 100 * n_genotipadas / max(1, nrow(lookup))))
 cat(sprintf("Direcao consistente: %d (%.1f%% das genotipadas)\n",
             n_consistentes, 100 * n_consistentes / max(1, n_genotipadas)))
-cat(sprintf("Replicadas com p<0.05: %d\n", n_replicadas))
 cat(sprintf("Discordantes: %d (%.1f%% das genotipadas)\n",
             n_discordantes, 100 * n_discordantes / max(1, n_genotipadas)))
 cat(sprintf("Genes com p<0.01 no MAGMA exoma: %d\n", n_magma))

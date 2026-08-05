@@ -51,8 +51,7 @@ p <- ggplot(plot_data, aes(x = .data[[COL_BETA_MVP]], y = BETA_exoma,
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
   geom_hline(yintercept = 0, linetype = "dotted", color = "gray") +
   geom_vline(xintercept = 0, linetype = "dotted", color = "gray") +
-  scale_color_manual(values = c("Replicada_p0.05" = "#1b9e77",
-                                 "Direcao_consistente" = "#7570b3",
+  scale_color_manual(values = c("Direcao_consistente" = "#1b9e77",
                                  "Discordante" = "#d95f02",
                                  "Indeterminada" = "gray50")) +
   labs(title = "Comparação de direção do efeito: MVP × Exoma",

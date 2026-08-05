@@ -2,12 +2,12 @@
 # 02_lookup_exoma.R
 # Look-up das coding variants do MVP nas summary statistics do exoma phs000822.
 # Classifica cada variante quanto à consistência da direção do efeito:
-#   Replicada_p0.05 / Direcao_consistente / Discordante / Nao_genotipada
+#   Direcao_consistente / Discordante / Indeterminada / Nao_genotipada
 #
 # Input :
 #   - dados/mvp/bc_signal.csv                (output do 01_filtrar_mvp.R)
 #   - dados/exoma/gwas_dbgap_+vep.tsv         (sumstats exoma com VEP)
-# Output: resultados/tabelas/lookup_completo.csv, resultados/tabelas/top_replicadas.csv
+# Output: resultados/tabelas/lookup_completo.csv, resultados/tabelas/top_consistentes.csv
 
 # ─────────────────────────── CONFIG ───────────────────────────
 MVP_SIGNAL <- "dados/mvp/bc_signal.csv"
@@ -32,9 +32,6 @@ EX_BETA  <- "beta"
 EX_SE    <- "se"
 EX_PVAL  <- "pval"
 EX_N     <- "n"
-
-# Threshold de significância para "replicada"
-PVAL_THRESHOLD <- 0.05
 # ───────────────────────────────────────────────────────────────
 
 # Caminhos relativos à raiz do repo (o pai do dir deste script), para o script
@@ -94,10 +91,7 @@ merged <- merged %>%
     classificacao = case_when(
       is.na(BETA_exoma) ~ "Nao_genotipada",
       is.na(.data[[MVP_BETA]]) ~ "Indeterminada",
-      sign(BETA_exoma) == sign(.data[[MVP_BETA]]) &
-        PVAL_exoma < PVAL_THRESHOLD ~ "Replicada_p0.05",
-      sign(BETA_exoma) == sign(.data[[MVP_BETA]]) &
-        PVAL_exoma >= PVAL_THRESHOLD ~ "Direcao_consistente",
+      sign(BETA_exoma) == sign(.data[[MVP_BETA]]) ~ "Direcao_consistente",
       sign(BETA_exoma) != sign(.data[[MVP_BETA]]) ~ "Discordante",
       TRUE ~ "Indeterminada"
     )
@@ -121,14 +115,14 @@ if (MVP_POP %in% colnames(merged)) {
             row.names = FALSE)
 }
 
-# 8. Top replicadas (PIP > 0.8)
+# 8. Top com direção consistente (PIP > 0.8)
 if (MVP_PIP %in% colnames(merged)) {
   top <- merged %>%
-    filter(classificacao %in% c("Replicada_p0.05", "Direcao_consistente"),
+    filter(classificacao == "Direcao_consistente",
            suppressWarnings(as.numeric(.data[[MVP_PIP]])) > 0.8) %>%
     arrange(desc(suppressWarnings(as.numeric(.data[[MVP_PIP]]))))
-  cat(sprintf("\nTop replicadas com PIP > 0.8: %d\n", nrow(top)))
-  write.csv(top, file.path(OUT_TABELAS, "top_replicadas.csv"), row.names = FALSE)
+  cat(sprintf("\nTop consistentes com PIP > 0.8: %d\n", nrow(top)))
+  write.csv(top, file.path(OUT_TABELAS, "top_consistentes.csv"), row.names = FALSE)
 }
 
 cat("\nOK. Look-up salvo em ", OUT_TABELAS, "/lookup_completo.csv\n", sep = "")

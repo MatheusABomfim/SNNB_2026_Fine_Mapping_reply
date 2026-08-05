@@ -56,7 +56,7 @@ dados/
 └── referencias/  # gene_loc.txt, LD reference (MAGMA futuro)
 scripts/          # validação MVP×exoma: 01_filtrar_mvp.R ... 06_scatter_plot.R
 resultados/
-├── tabelas/      # tabela1_replicadas, tabela2_discordantes, tabela3_novos_candidatos, tabela4_magma_genes
+├── tabelas/      # tabela1_consistentes, tabela2_discordantes, tabela3_novos_candidatos, tabela4_magma_genes
 ├── figuras/      # locus_plot_*.png, scatter_direcao.png
 └── magma/        # exoma.genes.out (colaborador)
 artigo/           # manuscript.md

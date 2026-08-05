@@ -44,9 +44,7 @@ pop_summary <- genotipadas %>%
   group_by(.data[[COL_POP]]) %>%
   summarise(
     n = n(),
-    n_consistentes = sum(classificacao %in%
-                           c("Replicada_p0.05", "Direcao_consistente")),
-    n_replicadas = sum(classificacao == "Replicada_p0.05"),
+    n_consistentes = sum(classificacao == "Direcao_consistente"),
     n_discordantes = sum(classificacao == "Discordante"),
     taxa_consistencia = n_consistentes / n,
     .groups = "drop"
