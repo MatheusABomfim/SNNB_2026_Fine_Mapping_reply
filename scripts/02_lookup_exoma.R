@@ -5,16 +5,16 @@
 #   Replicada_p0.05 / Direcao_consistente / Discordante / Nao_genotipada
 #
 # Input :
-#   - dados/mvp/bc_coding.csv                 (output do 01_filtrar_mvp.R)
+#   - dados/mvp/bc_signal.csv                (output do 01_filtrar_mvp.R)
 #   - dados/exoma/gwas_dbgap_+vep.tsv         (sumstats exoma com VEP)
 # Output: resultados/tabelas/lookup_completo.csv, resultados/tabelas/top_replicadas.csv
 
 # ─────────────────────────── CONFIG ───────────────────────────
-MVP_CODING <- "dados/mvp/bc_coding.csv"
+MVP_SIGNAL <- "dados/mvp/bc_signal.csv"
 EXOMA_SUMSTATS <- "dados/exoma/gwas_dbgap_sem_filtragem+joint_call+vep.tsv"
 OUT_TABELAS <- "resultados/tabelas"
 
-# Mapeamento de colunas do MVP (do bc_coding.csv)
+# Mapeamento de colunas do MVP (do bc_signal.csv)
 MVP_RSID  <- "RSID"
 MVP_POP   <- "Population"
 MVP_PIP   <- "Overall PIP"
@@ -43,7 +43,7 @@ args0 <- commandArgs(trailingOnly = FALSE)
 fidx <- grep("^--file=", args0)
 SCRIPT_DIR <- if (length(fidx)) dirname(sub("^--file=", "", args0[fidx])) else getwd()
 REPO_ROOT <- normalizePath(file.path(SCRIPT_DIR, ".."))
-MVP_CODING    <- file.path(REPO_ROOT, MVP_CODING)
+MVP_SIGNAL    <- file.path(REPO_ROOT, MVP_SIGNAL)
 EXOMA_SUMSTATS <- file.path(REPO_ROOT, EXOMA_SUMSTATS)
 OUT_TABELAS   <- file.path(REPO_ROOT, OUT_TABELAS)
 
@@ -55,11 +55,11 @@ if (!dir.exists(OUT_TABELAS)) dir.create(OUT_TABELAS, recursive = TRUE)
 
 # 1. Carregar dados
 cat("== 02_lookup_exoma.R ==\n")
-mvp_coding <- read.csv(MVP_CODING, stringsAsFactors = FALSE, check.names = FALSE)
+mvp_signal <- read.csv(MVP_SIGNAL, stringsAsFactors = FALSE, check.names = FALSE)
 exoma <- read.delim(EXOMA_SUMSTATS, header = TRUE, stringsAsFactors = FALSE,
                     check.names = FALSE, comment.char = "#")
 
-cat(sprintf("Coding variants MVP: %d\n", nrow(mvp_coding)))
+cat(sprintf("Coding variants MVP: %d\n", nrow(mvp_signal)))
 cat(sprintf("SNPs no exoma: %d\n", nrow(exoma)))
 cat("Colunas do exoma:\n")
 print(colnames(exoma))
@@ -78,7 +78,7 @@ exoma <- exoma %>%
   rename_with(~ ifelse(.x %in% EX_N, "N_exoma", .x))
 
 # 3. Match por RSID (left_join: mantém todas as coding do MVP)
-merged <- mvp_coding %>%
+merged <- mvp_signal %>%
   left_join(select(exoma, any_of(c("RSID", "CHR", "BP", "A1", "A2",
                                    "MAF_exoma", "BETA_exoma", "SE_exoma",
                                    "PVAL_exoma", "N_exoma"))),

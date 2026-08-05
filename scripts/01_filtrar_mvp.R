@@ -4,8 +4,7 @@
 #   1) câncer de mama (coluna Description = "Biological Mother: Cancer, Breast")
 #
 # Input : fine_mapping_GCST90479802.xlsx  (ou GCST90479802.tsv.gz)
-# Output: dados/mvp/bc_coding.csv, dados/mvp/bc_todos_sinais.csv,
-#         dados/mvp/rsids_coding.txt
+# Output: dados/mvp/bc_signal.csv, dados/mvp/rsids.txt
 
 # ─────────────────────────── CONFIG ───────────────────────────
 # Ajuste os caminhos e o mapeamento de colunas conforme os headers reais.
@@ -105,28 +104,26 @@ cat(sprintf("Sinais de câncer de mama (Biological Mother): %d\n", nrow(bc)))
 
 # 3. Sem filtro por variantes codantes — mantém todos os sinais de mãe-mama
 #    (a curadoria por p-value/priorização é feita depois).
-bc_coding <- bc
-cat(sprintf("Sinais mantidos (sem filtro coding): %d\n", nrow(bc_coding)))
+cat(sprintf("Sinais mantidos (sem filtro coding): %d\n", nrow(bc)))
 
 # 4. Estatísticas descritivas
 cat("\n--- Por tipo de VEP ---\n")
-if (COL_VEP %in% colnames(bc_coding)) print(table(bc_coding[[COL_VEP]]))
+if (COL_VEP %in% colnames(bc)) print(table(bc[[COL_VEP]]))
 cat("\n--- Por população ---\n")
-if (COL_POP %in% colnames(bc_coding)) print(table(bc_coding[[COL_POP]]))
+if (COL_POP %in% colnames(bc)) print(table(bc[[COL_POP]]))
 cat("\n--- Por PIP > 0.8 ---\n")
-if (COL_PIP %in% colnames(bc_coding)) {
-  pip <- suppressWarnings(as.numeric(bc_coding[[COL_PIP]]))
+if (COL_PIP %in% colnames(bc)) {
+  pip <- suppressWarnings(as.numeric(bc[[COL_PIP]]))
   print(table(pip > 0.8, useNA = "ifany"))
 }
 
 # 5. Salvar
-write.csv(bc_coding, file.path(OUT_DIR, "bc_coding.csv"), row.names = FALSE)
-write.csv(bc, file.path(OUT_DIR, "bc_todos_sinais.csv"), row.names = FALSE)
+write.csv(bc, file.path(OUT_DIR, "bc_signal.csv"), row.names = FALSE)
 
 # 6. Lista de RSIDs para match
-if (COL_RSID %in% colnames(bc_coding)) {
-  writeLines(unique(as.character(bc_coding[[COL_RSID]])),
-             file.path(OUT_DIR, "rsids_coding.txt"))
+if (COL_RSID %in% colnames(bc)) {
+  writeLines(unique(as.character(bc[[COL_RSID]])),
+             file.path(OUT_DIR, "rsids.txt"))
 }
 
 cat("\nOK. Arquivos gerados em ", OUT_DIR, "\n", sep = "")

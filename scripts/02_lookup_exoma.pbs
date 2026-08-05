@@ -9,7 +9,7 @@ export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
 
 echo "=========================================="
 echo "02_lookup_exoma.R (lookup MVP x exoma, direcao do efeito)"
-echo "  input : dados/mvp/bc_coding.csv, dados/exoma/gwas_dbgap_*+vep.tsv"
+echo "  input : dados/mvp/bc_signal.csv, dados/exoma/gwas_dbgap_*+vep.tsv"
 echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="

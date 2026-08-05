@@ -31,8 +31,8 @@ Pipeline GWAS do exoma (pipeline_gwas/)
                                               │
                                               ▼
 MVP fine-mapping (GCST90479802)
-  ├─► 01_filtrar_mvp.R        coding variants (VEP) de câncer de mama
-  │         └─► bc_coding.csv
+  ├─► 01_filtrar_mvp.R        sinais de câncer de mama (Biological Mother)
+  │         └─► bc_signal.csv
   │
   ▼
 02_lookup_exoma.R  ──►  match por rsID nas sumstats do exoma
@@ -83,7 +83,7 @@ Ver `pipeline_gwas/README.md` para detalhes.
 # no cluster, dentro de scripts/ (os PBS usam caminhos relativos a esse dir)
 cd scripts
 qsub 01_filtrar_mvp.pbs
-qsub 02_lookup_exoma.pbs   # depende do 01 (bc_coding.csv)
+qsub 02_lookup_exoma.pbs   # depende do 01 (bc_signal.csv)
 qsub 03_analise_ancestralidade.pbs   # depende do 02
 qsub 04_tabelas_finais.pbs           # depende do 02
 qsub 05_locus_plots.pbs              # depende do 02
