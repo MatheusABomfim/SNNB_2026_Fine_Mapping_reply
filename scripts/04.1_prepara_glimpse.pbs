@@ -5,7 +5,8 @@
 #PBS -q workq
 # 04.1_prepara_glimpse.pbs
 # Prepara os inputs do passo 04 (imputação GLIMPSE2): janelas ±1 Mb por sinal,
-# sítios exatos e lista de BAMs recalibrated. Roda em R (env quali).
+# sítios exatos e lista de CRAMs (*.md.cram, work/ do Nextflow do Sarek).
+# Roda em R (env quali).
 #
 # Rodar dentro de scripts/:  qsub 04.1_prepara_glimpse.pbs
 
@@ -14,7 +15,7 @@ export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
 
 echo "=========================================="
 echo "04.1_prepara_glimpse.R (inputs GLIMPSE2: regioes, sites, bams)"
-echo "  input : dados/mvp/bc_signal.csv, BAMs recalibrated (Sarek)"
+echo "  input : dados/mvp/bc_signal.csv, CRAMs *.md.cram (Sarek, work/ Nextflow)"
 echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="

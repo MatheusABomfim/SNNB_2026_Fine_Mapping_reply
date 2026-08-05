@@ -73,7 +73,7 @@ artigo/           # manuscript.md
 
 ```bash
 # a) produção (1KG já configurado → pular 01/01.1):
-qsub pipeline_gwas/04_assoc_prod.pbs   # → gwas/gwas_prod/SRR_gwas.assoc
+qsub pipeline_gwas/04.3_assoc_prod.pbs  # → gwas/gwas_prod/SRR_gwas.assoc
 qsub pipeline_gwas/05_gwas_ssf.pbs       # → gwas_ssf.tsv + YAML
 
 # b) converter para o formato do MVP lookup:
