@@ -1,0 +1,26 @@
+#!/bin/bash
+#PBS -N 03-analise-ancestralidade
+#PBS -e scripts/03-analise-ancestralidade.err
+#PBS -o scripts/03-analise-ancestralidade.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "03_analise_ancestralidade.R (consistencia por populacao)"
+echo "  input : resultados/tabelas/lookup_completo.csv"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript scripts/03_analise_ancestralidade.R
+
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: 03_analise_ancestralidade.R completed at $(date)"
+else
+    echo "FAILURE: 03_analise_ancestralidade.R exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="

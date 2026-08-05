@@ -1,0 +1,26 @@
+#!/bin/bash
+#PBS -N 02-lookup-exoma
+#PBS -e scripts/02-lookup-exoma.err
+#PBS -o scripts/02-lookup-exoma.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "02_lookup_exoma.R (lookup MVP x exoma, direcao do efeito)"
+echo "  input : dados/mvp/bc_coding.csv, dados/exoma/gwas_dbgap_*+vep.tsv"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript scripts/02_lookup_exoma.R
+
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: 02_lookup_exoma.R completed at $(date)"
+else
+    echo "FAILURE: 02_lookup_exoma.R exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="

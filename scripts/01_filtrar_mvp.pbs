@@ -1,0 +1,25 @@
+#!/bin/bash
+#PBS -N 01-filtrar-mvp
+#PBS -e scripts/01-filtrar-mvp.err
+#PBS -o scripts/01-filtrar-mvp.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "01_filtrar_mvp.R (fine-mapping MVP -> coding variants breast cancer)"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript scripts/01_filtrar_mvp.R
+
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: 01_filtrar_mvp.R completed at $(date)"
+else
+    echo "FAILURE: 01_filtrar_mvp.R exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="

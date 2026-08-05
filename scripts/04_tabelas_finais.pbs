@@ -1,0 +1,26 @@
+#!/bin/bash
+#PBS -N 04-tabelas-finais
+#PBS -e scripts/04-tabelas-finais.err
+#PBS -o scripts/04-tabelas-finais.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "04_tabelas_finais.R (tabelas 1-4 do artigo)"
+echo "  input : resultados/tabelas/lookup_completo.csv, dados/exoma/"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript scripts/04_tabelas_finais.R
+
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: 04_tabelas_finais.R completed at $(date)"
+else
+    echo "FAILURE: 04_tabelas_finais.R exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="
