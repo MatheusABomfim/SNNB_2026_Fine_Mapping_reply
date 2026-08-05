@@ -1,6 +1,8 @@
-# SNNB_2026_Fine_Mapping_reply
+# SNNB_2026_Fine_Mapping
 
 Validação de variantes codantes fine-mapped do câncer de mama no **MVP (Million Veteran Program)** em coorte independente de exoma (**phs000822**).
+
+> **Nota (nome das pastas):** o repositório no GitHub chama-se `SNNB_2026_Fine_Mapping_reply`; a pasta de trabalho no cluster foi renomeada para `SNNB_2026_Fine_Mapping_scripts`. São o mesmo projeto.
 
 ## Visão geral
 
@@ -93,7 +95,9 @@ Os caminhos dos dados e o mapeamento de colunas ficam configurados no bloco
 ## Notas
 
 - Dados brutos (xlsx/tsv/vcf/PLINK) não são versionados — ficam no cluster
-  (`/storage4/matheusbomfim/SNNB_2026_Fine_mapping/` e outputs do quali-workflow).
+  (`/storage4/matheusbomfim/SNNB_2026_Fine_mapping/` = dados do MVP + dbGaP;
+  outputs do GWAS em `SNNB_2026_Fine_Mapping_scripts/` conforme os CONFIG dos scripts).
+- A pasta do repo no cluster é `/storage4/matheusbomfim/SNNB_2026_Fine_Mapping_scripts`.
 - `pipeline_gwas/` reutiliza o painel 1KG já configurado pelo quali-workflow
   (`/storage4/matheusbomfim/quali/1kg/1kg_hg38_exome`) e a instalação LDSC.
 - MAGMA gene analysis será desenvolvido por colaborador; `04_tabelas_finais.R`

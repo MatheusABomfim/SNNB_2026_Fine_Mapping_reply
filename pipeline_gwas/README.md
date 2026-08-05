@@ -4,6 +4,10 @@ Pipeline adaptado do **quali-workflow** (`github.com/MatheusABomfim/quali-workfl
 para gerar as summary statistics do exoma (câncer de mama, phs000822) que
 alimentam a validação das variantes fine-mapped do MVP (`scripts/` neste repo).
 
+> **Nota:** a pasta do repo no cluster é `/storage4/matheusbomfim/SNNB_2026_Fine_Mapping_scripts`
+> (renomeada de `SNNB_2026_Fine_Mapping_reply`). Os inputs/dados do MVP ficam em
+> `/storage4/matheusbomfim/SNNB_2026_Fine_mapping/`.
+
 ## Fluxo
 
 ```
