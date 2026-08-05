@@ -45,16 +45,37 @@ CODING_TYPES <- c(
 OUT_DIR <- "dados/mvp"
 # ───────────────────────────────────────────────────────────────
 
+# Caminhos relativos à raiz do repo (a raiz é o pai do dir deste script),
+# para o script funcionar rodado de qualquer CWD (ex.: via PBS em scripts/).
+args0 <- commandArgs(trailingOnly = FALSE)
+fidx <- grep("^--file=", args0)
+SCRIPT_DIR <- if (length(fidx)) dirname(sub("^--file=", "", args0[fidx])) else getwd()
+REPO_ROOT <- normalizePath(file.path(SCRIPT_DIR, ".."))
+MVP_INPUT <- file.path(REPO_ROOT, MVP_INPUT)
+OUT_DIR   <- file.path(REPO_ROOT, OUT_DIR)
+
+# Detectar formato de entrada: se readxl não estiver disponível e o .xlsx não
+# existir, tenta o .tsv.gz (mesmo arquivo em formato tab separado, sem readxl).
+have_readxl <- requireNamespace("readxl", quietly = TRUE)
+MVP_IS_TSV_GZ <- MVP_IS_TSV_GZ || !file.exists(MVP_INPUT)
+if (MVP_IS_TSV_GZ) {
+  candidates <- c(sub("\\.xlsx$", ".tsv.gz", MVP_INPUT),
+                  sub("fine_mapping_", "", sub("\\.xlsx$", ".tsv.gz", MVP_INPUT)))
+  found <- candidates[file.exists(candidates)]
+  if (length(found) == 0) {
+    stop("MVP não encontrado. Nem .xlsx (", MVP_INPUT, ") nem .tsv.gz (",
+         paste(candidates, collapse = ", "), ") existem — confira dados/mvp/. Se for usar .xlsx, instale readxl (micromamba install -n quali -c conda-forge r-readxl).")
+  }
+  MVP_INPUT <- found[1]
+} else if (!have_readxl) {
+  stop("Pacote 'readxl' necessário para ler .xlsx e nenhum .tsv.gz encontrado. Instale com micromamba install -n quali -c conda-forge r-readxl.")
+}
+
 suppressPackageStartupMessages({
   library(dplyr)
   library(stringr)
 })
-if (!MVP_IS_TSV_GZ) {
-  if (!requireNamespace("readxl", quietly = TRUE)) {
-    stop("Pacote 'readxl' necessário para ler .xlsx. Instale com install.packages('readxl').")
-  }
-  library(readxl)
-}
+if (!MVP_IS_TSV_GZ) library(readxl)
 if (!dir.exists(OUT_DIR)) dir.create(OUT_DIR, recursive = TRUE)
 
 # 1. Carregar MVP

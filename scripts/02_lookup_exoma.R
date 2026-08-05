@@ -37,6 +37,16 @@ EX_N     <- "n"
 PVAL_THRESHOLD <- 0.05
 # ───────────────────────────────────────────────────────────────
 
+# Caminhos relativos à raiz do repo (o pai do dir deste script), para o script
+# funcionar rodado de qualquer CWD (ex.: via PBS em scripts/).
+args0 <- commandArgs(trailingOnly = FALSE)
+fidx <- grep("^--file=", args0)
+SCRIPT_DIR <- if (length(fidx)) dirname(sub("^--file=", "", args0[fidx])) else getwd()
+REPO_ROOT <- normalizePath(file.path(SCRIPT_DIR, ".."))
+MVP_CODING    <- file.path(REPO_ROOT, MVP_CODING)
+EXOMA_SUMSTATS <- file.path(REPO_ROOT, EXOMA_SUMSTATS)
+OUT_TABELAS   <- file.path(REPO_ROOT, OUT_TABELAS)
+
 suppressPackageStartupMessages({
   library(dplyr)
   library(tidyr)

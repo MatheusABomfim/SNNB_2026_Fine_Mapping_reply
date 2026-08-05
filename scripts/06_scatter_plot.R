@@ -15,6 +15,16 @@ COL_BETA_MVP <- "Beta Population"
 COL_PIP      <- "Overall PIP"
 # ───────────────────────────────────────────────────────────────
 
+# Caminhos relativos à raiz do repo (o pai do dir deste script), para o script
+# funcionar rodado de qualquer CWD (ex.: via PBS em scripts/).
+args0 <- commandArgs(trailingOnly = FALSE)
+fidx <- grep("^--file=", args0)
+SCRIPT_DIR <- if (length(fidx)) dirname(sub("^--file=", "", args0[fidx])) else getwd()
+REPO_ROOT <- normalizePath(file.path(SCRIPT_DIR, ".."))
+LOOKUP_CSV  <- file.path(REPO_ROOT, LOOKUP_CSV)
+OUT_FIGURAS <- file.path(REPO_ROOT, OUT_FIGURAS)
+OUT_PDF     <- file.path(REPO_ROOT, OUT_PDF)
+
 suppressPackageStartupMessages({
   library(ggplot2)
   library(dplyr)
