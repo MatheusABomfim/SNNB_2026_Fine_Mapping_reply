@@ -39,8 +39,8 @@ MVP fine-mapping (GCST90479802)
   │                     classificação: Replicada / Direcao_consistente / Discordante / Nao_genotipada
   │                     └─► lookup_completo.csv
   ├─► 03_verifica_cobertura_exoma.R checagem de cobertura das regiões no exoma
-  ├─► 04_imputa_glimpse.pbs          imputação GLIMPSE2 dos sinais (env imputacao)
-  │         └─► 04_associa_glimpse.R associação dirigida + classificação de direção
+  ├─► 04.2_imputa_glimpse.pbs          imputação GLIMPSE2 dos sinais (env imputacao)
+  │         └─► 04.3_associa_glimpse.R associação dirigida + classificação de direção
   ├─► 05_analise_ancestralidade.R   (AFR / AMR / EUR)
   ├─► 06_tabelas_finais.R           tabelas 1-4 do artigo
   ├─► 07_locus_plots.R              locus plots dos top loci
@@ -72,7 +72,7 @@ artigo/           # manuscript.md
 
 ```bash
 # a) produção (1KG já configurado → pular 01/01.1):
-qsub pipeline_gwas/04.3_assoc_prod.pbs   # → gwas/gwas_prod/SRR_gwas.assoc
+qsub pipeline_gwas/04_assoc_prod.pbs   # → gwas/gwas_prod/SRR_gwas.assoc
 qsub pipeline_gwas/05_gwas_ssf.pbs       # → gwas_ssf.tsv + YAML
 
 # b) converter para o formato do MVP lookup:
@@ -89,7 +89,7 @@ cd scripts
 qsub 01_filtrar_mvp.pbs
 qsub 02_lookup_exoma.pbs   # depende do 01 (bc_signal.csv)
 qsub 03_verifica_cobertura_exoma.pbs # cobertura das regiões MVP no exoma (diagnóstico)
-qsub 04_imputa_glimpse.pbs           # GLIMPSE2 nas 33 regiões (env imputacao) + associação
+qsub 04.2_imputa_glimpse.pbs           # GLIMPSE2 nas 33 regiões (env imputacao) + associação
 qsub 05_analise_ancestralidade.pbs   # depende do 02
 qsub 06_tabelas_finais.pbs           # depende do 02
 qsub 07_locus_plots.pbs              # depende do 02
@@ -119,18 +119,18 @@ então devem ser submetidos **dentro de `scripts/`**. A ordem é importante:
 | `imputacao` | ferramentas de imputação: SHAPEIT5, GLIMPSE2, bcftools, samtools, plink2 |
 
 O env `imputacao` é criado por `scripts/setup_imputacao_env.sh` (não é o `quali`).
-O passo 04 usa os dois: `04_imputa_glimpse.pbs` roda a imputação com `imputacao` e
-chama `04_prepara_glimpse.R`/`04_associa_glimpse.R` com `quali`.
+O passo 04 usa os dois: `04.2_imputa_glimpse.pbs` roda a imputação com `imputacao` e
+chama `04.1_prepara_glimpse.R`/`04.3_associa_glimpse.R` com `quali`.
 
 ### 3. Imputação GLIMPSE2 (passo 04) — notas
 
 - Pré-requisitos no cluster: BAMs recalibrated dos casos (Sarek), painel
   `1kg_hg38_autosomes` (hg38), mapas genéticos b38 (baixados no setup), env `imputacao`.
-- `04_prepara_glimpse.R` gera as janelas ±1 Mb por sinal, os sítios exatos e a
+- `04.1_prepara_glimpse.R` gera as janelas ±1 Mb por sinal, os sítios exatos e a
   lista de BAMs (`resultados/glimpse/`).
-- `04_imputa_glimpse.pbs` fasa o 1KG por cromossomo (SHAPEIT5) e imputa as 33
+- `04.2_imputa_glimpse.pbs` fasa o 1KG por cromossomo (SHAPEIT5) e imputa as 33
   regiões com GLIMPSE2 (chunk → split_reference → phase → ligate).
-- `04_associa_glimpse.R` extrai as dosagens dos casos, genótipos dos controles
+- `04.3_associa_glimpse.R` extrai as dosagens dos casos, genótipos dos controles
   1KG matched (painel fasedo) e roda logística caso×controle com PCs; classifica
   `Direcao_consistente`/`Discordante`/`Indeterminada`/`Sem_imputacao`.
 - Como os sinais são não-codantes e o exoma não os cobre (0/33 por rsID/posição),

@@ -1,10 +1,10 @@
 #!/bin/bash
-# 04_associa_glimpse.pbs
-# Associação dirigida dos sinais imputados por GLIMPSE2 (04_imputa_glimpse.pbs)
+# 04.3_associa_glimpse.pbs
+# Associação dirigida dos sinais imputados por GLIMPSE2 (04.2_imputa_glimpse.pbs)
 # nos casos do exoma, com controles 1KG matched, e classificação de direção vs MVP.
 # Roda em R (env quali); usa bcftools via env imputacao internamente.
 #
-# Rodar dentro de scripts/:  qsub 04_associa_glimpse.pbs
+# Rodar dentro de scripts/:  qsub 04.3_associa_glimpse.pbs
 # ─────────────────────────── CONFIG ───────────────────────────
 MICROMAMBA="/storage2/matheusbomfim/projects/micromamba/bin/micromamba"
 ENV_R="quali"
@@ -14,19 +14,19 @@ cd "$PBS_O_WORKDIR" || exit 1
 export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
 
 echo "=========================================="
-echo "04_associa_glimpse.R (associação dos sinais imputados)"
+echo "04.3_associa_glimpse.R (associação dos sinais imputados)"
 echo "  input : resultados/glimpse/ligate/*.bcf, dados/mvp/bc_signal.csv"
 echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
-"$MICROMAMBA" run -n "$ENV_R" Rscript 04_associa_glimpse.R
+"$MICROMAMBA" run -n "$ENV_R" Rscript 04.3_associa_glimpse.R
 
 EXIT_CODE=$?
 echo "=========================================="
 if [ $EXIT_CODE -eq 0 ]; then
-    echo "SUCCESS: 04_associa_glimpse.R completed at $(date)"
+    echo "SUCCESS: 04.3_associa_glimpse.R completed at $(date)"
 else
-    echo "FAILURE: 04_associa_glimpse.R exited with code $EXIT_CODE at $(date)"
+    echo "FAILURE: 04.3_associa_glimpse.R exited with code $EXIT_CODE at $(date)"
 fi
 echo "=========================================="

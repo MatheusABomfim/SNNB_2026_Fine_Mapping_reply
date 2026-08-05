@@ -1,21 +1,21 @@
 #!/bin/bash
-# 04_imputa_glimpse.pbs
+# 04.2_imputa_glimpse.pbs
 # Imputação (GLIMPSE2) dos sinais fine-mapped do MVP (não-codantes) nas 33
 # regiões usando os BAMs recalibrated dos casos do exoma phs000822.
 #
 # Fluxo (tutorial GLIMPSE2):
-#   1) 04_prepara_glimpse.R (env quali)      → regioes.txt, sites.txt, bams.txt
+#   1) 04.1_prepara_glimpse.R (env quali)      → regioes.txt, sites.txt, bams.txt
 #   2) phasing do 1KG (SHAPEIT5) por chr     → painel de referência fasedo
 #   3) GLIMPSE2_chunk/split_reference/phase  → imputação por janela
 #   4) GLIMPSE2_ligate por janela            → BCFs imputados
 #
 # Env: 'imputacao' (shapeit5, glimpse-bio, bcftools, samtools, plink2).
-#      R (04_prepara_glimpse.R) roda no env 'quali'.
-# Rodar dentro de scripts/:  qsub 04_imputa_glimpse.pbs
+#      R (04.1_prepara_glimpse.R) roda no env 'quali'.
+# Rodar dentro de scripts/:  qsub 04.2_imputa_glimpse.pbs
 # ─────────────────────────── CONFIG ───────────────────────────
 MICROMAMBA="/storage2/matheusbomfim/projects/micromamba/bin/micromamba"
 ENV_IMP="imputacao"      # ferramentas de imputação (env separado)
-ENV_R="quali"            # R (para o 04_prepara_glimpse.R)
+ENV_R="quali"            # R (para o 04.1_prepara_glimpse.R)
 
 # Painel 1KG (PLINK, hg38) e mapas genéticos b38
 KG_PREFIX="/storage4/matheusbomfim/quali/1kg/1kg_hg38_autosomes"
@@ -37,7 +37,7 @@ IMP() { "$MICROMAMBA" run -n "$ENV_IMP" "$@"; }
 RSCRIPT() { "$MICROMAMBA" run -n "$ENV_R" Rscript "$@"; }
 
 echo "=========================================="
-echo "04_imputa_glimpse.pbs (GLIMPSE2 imputation, 33 regiões MVP)"
+echo "04.2_imputa_glimpse.pbs (GLIMPSE2 imputation, 33 regiões MVP)"
 echo "  env imputação: $ENV_IMP | R: $ENV_R"
 echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
@@ -58,8 +58,8 @@ done
 echo "  OK (ferramentas e inputs presentes)"
 
 # ── 1. Gerar inputs (regiões, sites, bams) ─────────────────────
-echo "[1/5] Gerando inputs (04_prepara_glimpse.R)..."
-RSCRIPT 04_prepara_glimpse.R
+echo "[1/5] Gerando inputs (04.1_prepara_glimpse.R)..."
+RSCRIPT 04.1_prepara_glimpse.R
 
 # ── 2. Phasing do 1KG por cromossomo (SHAPEIT5) ────────────────
 # Converte o PLINK do 1KG em VCF por chr e fasa com SHAPEIT5_phase_common.
@@ -162,9 +162,9 @@ while read -r CHR START END; do
   fi
 done < "$WORK_ROOT/regioes.txt"
 
-# ── 6. Associação dirigida (04_associa_glimpse.R) ─────────────
+# ── 6. Associação dirigida (04.3_associa_glimpse.R) ─────────────
 echo "[6/6] Associação e classificação de direção..."
-RSCRIPT 04_associa_glimpse.R
+RSCRIPT 04.3_associa_glimpse.R
 
 echo "=========================================="
 echo "SUCCESS: imputação GLIMPSE2 concluída em $(date)"

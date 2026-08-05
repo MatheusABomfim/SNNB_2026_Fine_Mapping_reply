@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# 04_prepara_glimpse.R
+# 04.1_prepara_glimpse.R
 # Prepara os inputs do passo 04 (imputação GLIMPSE2 dos sinais MVP no exoma):
 #   1) janelas por cromossomo (± WINDOW_MB ao redor de cada sinal, fundidas)
 #   2) lista de BAMs recalibrated (Sarek) dos casos, com ID de amostra
@@ -42,7 +42,7 @@ OUT_GLIMPSE <- abs_path(OUT_GLIMPSE)
 suppressPackageStartupMessages(library(data.table))
 if (!dir.exists(OUT_GLIMPSE)) dir.create(OUT_GLIMPSE, recursive = TRUE)
 
-cat("== 04_prepara_glimpse.R ==\n")
+cat("== 04.1_prepara_glimpse.R ==\n")
 mvp <- fread(MVP_SIGNAL, na.strings = c("NA", "", "N/A"))
 stopifnot(all(c(MVP_CHR, MVP_BP) %in% names(mvp)))
 

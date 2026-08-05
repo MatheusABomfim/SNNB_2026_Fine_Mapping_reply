@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
-# 04_associa_glimpse.R
+# 04.3_associa_glimpse.R
 # Associação dirigida dos 33 sinais do MVP nos casos do exoma phs000822 usando
-# os genótipos imputados por GLIMPSE2 (04_imputa_glimpse.pbs), com controles
+# os genótipos imputados por GLIMPSE2 (04.2_imputa_glimpse.pbs), com controles
 # 1KG matched (os mesmos do GWAS). Compara a direção do efeito com o MVP.
 #
 # Input :
@@ -68,7 +68,7 @@ bcftools <- function(...) {
   res
 }
 
-cat("== 04_associa_glimpse.R ==\n")
+cat("== 04.3_associa_glimpse.R ==\n")
 mvp <- read.csv(MVP_SIGNAL, stringsAsFactors = FALSE, check.names = FALSE)
 mvp <- mvp[!is.na(mvp[[MVP_BP]]), ]
 mvp$CHR_n <- gsub("^chr", "", as.character(mvp[[MVP_CHR]]), ignore.case = TRUE)
@@ -77,7 +77,7 @@ cat(sprintf("Sinais MVP: %d\n", nrow(mvp)))
 
 lig_files <- list.files(GLIMPSE_LIG, pattern = "\\.bcf$", full.names = TRUE)
 if (length(lig_files) == 0) stop("Nenhum BCF ligado em ", GLIMPSE_LIG,
-                                 " — rode 04_imputa_glimpse.pbs primeiro")
+                                 " — rode 04.2_imputa_glimpse.pbs primeiro")
 
 # IDs dos casos = samples do header do primeiro BCF ligado (ordem da imputação,
 # mesma do FORMAT/DS). Fallback para bams.txt se o BCF não tiver samples.
