@@ -1,0 +1,31 @@
+#!/bin/bash
+#PBS -N 04.1-prepara-glimpse
+#PBS -e 04.1-prepara-glimpse.err
+#PBS -o 04.1-prepara-glimpse.log
+#PBS -q workq
+# 04.1_prepara_glimpse.pbs
+# Prepara os inputs do passo 04 (imputação GLIMPSE2): janelas ±1 Mb por sinal,
+# sítios exatos e lista de BAMs recalibrated. Roda em R (env quali).
+#
+# Rodar dentro de scripts/:  qsub 04.1_prepara_glimpse.pbs
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "04.1_prepara_glimpse.R (inputs GLIMPSE2: regioes, sites, bams)"
+echo "  input : dados/mvp/bc_signal.csv, BAMs recalibrated (Sarek)"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 04.1_prepara_glimpse.R
+
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: 04.1_prepara_glimpse.R completed at $(date)"
+else
+    echo "FAILURE: 04.1_prepara_glimpse.R exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="

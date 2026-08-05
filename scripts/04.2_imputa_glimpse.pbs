@@ -1,4 +1,8 @@
 #!/bin/bash
+#PBS -N 04.2-imputa-glimpse
+#PBS -e 04.2-imputa-glimpse.err
+#PBS -o 04.2-imputa-glimpse.log
+#PBS -q workq
 # 04.2_imputa_glimpse.pbs
 # Imputação (GLIMPSE2) dos sinais fine-mapped do MVP (não-codantes) nas 33
 # regiões usando os BAMs recalibrated dos casos do exoma phs000822.

@@ -39,6 +39,7 @@ MVP fine-mapping (GCST90479802)
   │                     classificação: Replicada / Direcao_consistente / Discordante / Nao_genotipada
   │                     └─► lookup_completo.csv
   ├─► 03_verifica_cobertura_exoma.R checagem de cobertura das regiões no exoma
+  ├─► 04.1_prepara_glimpse.pbs        gera inputs da imputação (janelas, sites, bams)
   ├─► 04.2_imputa_glimpse.pbs          imputação GLIMPSE2 dos sinais (env imputacao)
   │         └─► 04.3_associa_glimpse.R associação dirigida + classificação de direção
   ├─► 05_analise_ancestralidade.R   (AFR / AMR / EUR)
@@ -121,6 +122,8 @@ então devem ser submetidos **dentro de `scripts/`**. A ordem é importante:
 O env `imputacao` é criado por `scripts/setup_imputacao_env.sh` (não é o `quali`).
 O passo 04 usa os dois: `04.2_imputa_glimpse.pbs` roda a imputação com `imputacao` e
 chama `04.1_prepara_glimpse.R`/`04.3_associa_glimpse.R` com `quali`.
+Cada sub-passo também pode rodar isolado via `qsub 04.1_prepara_glimpse.pbs`,
+`qsub 04.2_imputa_glimpse.pbs` e `qsub 04.3_associa_glimpse.pbs`.
 
 ### 3. Imputação GLIMPSE2 (passo 04) — notas
 
