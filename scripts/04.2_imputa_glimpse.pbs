@@ -27,9 +27,9 @@ KG_PREFIX="/storage4/matheusbomfim/quali/1kg/1kg_hg38_autosomes"
 MAPS_DIR="/storage4/matheusbomfim/quali/1kg/maps_b38"
 
 # Referência hg38 (fasta) — obrigatória para o GLIMPSE2_phase decodificar os
-# CRAMs dos casos (opção --fasta, faidx-indexed). CONFIRMAR o caminho real no
-# cluster (refgen/ do Sarek; os CRAMs foram criados com essa referência).
-REF_FASTA="/storage4/matheusbomfim/programas/sarek/refgen/Homo_sapiens.GRCh38.dna.fa"
+# CRAMs dos casos (opção --fasta, faidx-indexed). GATK bundle do refgen/ do
+# Sarek (tem .fai/.dict ao lado).
+REF_FASTA="/storage4/matheusbomfim/programas/sarek/refgen/Homo_sapiens/GATK/GRCh38/Sequence/WholeGenomeFasta/Homo_sapiens_assembly38.fasta"
 
 # Diretório de trabalho (relativo à raiz do repo, submetido de scripts/)
 WORK_ROOT="resultados/glimpse"
