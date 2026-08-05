@@ -39,10 +39,12 @@ MVP fine-mapping (GCST90479802)
   │                     classificação: Replicada / Direcao_consistente / Discordante / Nao_genotipada
   │                     └─► lookup_completo.csv
   ├─► 03_verifica_cobertura_exoma.R checagem de cobertura das regiões no exoma
-  ├─► 04_analise_ancestralidade.R   (AFR / AMR / EUR)
-  ├─► 05_tabelas_finais.R           tabelas 1-4 do artigo
-  ├─► 06_locus_plots.R              locus plots dos top loci
-  └─► 07_scatter_plot.R             scatter direção do efeito MVP × exoma
+  ├─► 04_imputa_glimpse.pbs          imputação GLIMPSE2 dos sinais (env imputacao)
+  │         └─► 04_associa_glimpse.R associação dirigida + classificação de direção
+  ├─► 05_analise_ancestralidade.R   (AFR / AMR / EUR)
+  ├─► 06_tabelas_finais.R           tabelas 1-4 do artigo
+  ├─► 07_locus_plots.R              locus plots dos top loci
+  └─► 08_scatter_plot.R             scatter direção do efeito MVP × exoma
 
 MAGMA (gene-level)  →  colaborador (etapa futura), output em resultados/magma/
 ```
@@ -55,8 +57,9 @@ dados/
 ├── mvp/          # GCST90479802.tsv.gz, fine_mapping_GCST90479802.xlsx (no cluster)
 ├── exoma/        # exoma_sumstats.txt (output do 05.5), genes.annot
 └── referencias/  # gene_loc.txt, LD reference (MAGMA futuro)
-scripts/          # validação MVP×exoma: 01_filtrar_mvp.R ... 07_scatter_plot.R
+scripts/          # validação MVP×exoma: 01_filtrar_mvp.R ... 08_scatter_plot.R
 resultados/
+├── glimpse/      # output do passo 04 (regioes/bams/split/impute/ligate) — cluster
 ├── tabelas/      # tabela1_consistentes, tabela2_discordantes, tabela3_novos_candidatos, tabela4_magma_genes
 ├── figuras/      # locus_plot_*.png, scatter_direcao.png
 └── magma/        # exoma.genes.out (colaborador)
@@ -86,10 +89,11 @@ cd scripts
 qsub 01_filtrar_mvp.pbs
 qsub 02_lookup_exoma.pbs   # depende do 01 (bc_signal.csv)
 qsub 03_verifica_cobertura_exoma.pbs # cobertura das regiões MVP no exoma (diagnóstico)
-qsub 04_analise_ancestralidade.pbs   # depende do 02
-qsub 05_tabelas_finais.pbs           # depende do 02
-qsub 06_locus_plots.pbs              # depende do 02
-qsub 07_scatter_plot.pbs             # depende do 02
+qsub 04_imputa_glimpse.pbs           # GLIMPSE2 nas 33 regiões (env imputacao) + associação
+qsub 05_analise_ancestralidade.pbs   # depende do 02
+qsub 06_tabelas_finais.pbs           # depende do 02
+qsub 07_locus_plots.pbs              # depende do 02
+qsub 08_scatter_plot.pbs             # depende do 02
 ```
 
 Ou diretamente (sem PBS), no cluster:
@@ -97,16 +101,41 @@ Ou diretamente (sem PBS), no cluster:
 ```bash
 Rscript scripts/01_filtrar_mvp.R
 Rscript scripts/02_lookup_exoma.R
-Rscript scripts/04_analise_ancestralidade.R
-Rscript scripts/05_tabelas_finais.R
-Rscript scripts/06_locus_plots.R
-Rscript scripts/07_scatter_plot.R
+Rscript scripts/05_analise_ancestralidade.R
+Rscript scripts/06_tabelas_finais.R
+Rscript scripts/07_locus_plots.R
+Rscript scripts/08_scatter_plot.R
 ```
 
-Os `.pbs` de `scripts/` usam o env `quali` e rodam a partir de `scripts/`
-(`cd "$PBS_O_WORKDIR"`), então devem ser submetidos **dentro de `scripts/`**.
-A ordem é importante: 02–06 consomem `resultados/tabelas/lookup_completo.csv`
-(output do 02).
+Os `.pbs` de `scripts/` rodam a partir de `scripts/` (`cd "$PBS_O_WORKDIR"`),
+então devem ser submetidos **dentro de `scripts/`**. A ordem é importante:
+02–06 consomem `resultados/tabelas/lookup_completo.csv` (output do 02).
+
+### Envs micromamba
+
+| Env | Uso |
+|---|---|
+| `quali` | R (01–08, exceto 04) e o pipeline GWAS (`pipeline_gwas/`) |
+| `imputacao` | ferramentas de imputação: SHAPEIT5, GLIMPSE2, bcftools, samtools, plink2 |
+
+O env `imputacao` é criado por `scripts/setup_imputacao_env.sh` (não é o `quali`).
+O passo 04 usa os dois: `04_imputa_glimpse.pbs` roda a imputação com `imputacao` e
+chama `04_prepara_glimpse.R`/`04_associa_glimpse.R` com `quali`.
+
+### 3. Imputação GLIMPSE2 (passo 04) — notas
+
+- Pré-requisitos no cluster: BAMs recalibrated dos casos (Sarek), painel
+  `1kg_hg38_autosomes` (hg38), mapas genéticos b38 (baixados no setup), env `imputacao`.
+- `04_prepara_glimpse.R` gera as janelas ±1 Mb por sinal, os sítios exatos e a
+  lista de BAMs (`resultados/glimpse/`).
+- `04_imputa_glimpse.pbs` fasa o 1KG por cromossomo (SHAPEIT5) e imputa as 33
+  regiões com GLIMPSE2 (chunk → split_reference → phase → ligate).
+- `04_associa_glimpse.R` extrai as dosagens dos casos, genótipos dos controles
+  1KG matched (painel fasedo) e roda logística caso×controle com PCs; classifica
+  `Direcao_consistente`/`Discordante`/`Indeterminada`/`Sem_imputacao`.
+- Como os sinais são não-codantes e o exoma não os cobre (0/33 por rsID/posição),
+  o GLIMPSE2 recupera os genótipos por LD; a qualidade é monitorada pelo INFO
+  score — sinais com imputação ruim ficam como `Sem_imputacao`.
 
 Os caminhos dos dados e o mapeamento de colunas ficam configurados no bloco
 `CONFIG` no topo de cada script — preencha conforme os headers reais dos arquivos.
@@ -119,5 +148,5 @@ Os caminhos dos dados e o mapeamento de colunas ficam configurados no bloco
 - A pasta do repo no cluster é `/storage4/matheusbomfim/SNNB_2026_Fine_Mapping_scripts`.
 - `pipeline_gwas/` reutiliza o painel 1KG já configurado pelo quali-workflow
   (`/storage4/matheusbomfim/quali/1kg/1kg_hg38_exome`) e a instalação LDSC.
-- MAGMA gene analysis será desenvolvido por colaborador; `05_tabelas_finais.R`
+- MAGMA gene analysis será desenvolvido por colaborador; `06_tabelas_finais.R`
   já lê `resultados/magma/exoma.genes.out` quando disponível.

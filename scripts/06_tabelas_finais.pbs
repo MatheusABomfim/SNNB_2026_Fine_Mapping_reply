@@ -1,26 +1,26 @@
 #!/bin/bash
-#PBS -N 05-tabelas-finais
-#PBS -e 05-tabelas-finais.err
-#PBS -o 05-tabelas-finais.log
+#PBS -N 06-tabelas-finais
+#PBS -e 06-tabelas-finais.err
+#PBS -o 06-tabelas-finais.log
 #PBS -q workq
 
 cd "$PBS_O_WORKDIR"
 export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
 
 echo "=========================================="
-echo "05_tabelas_finais.R (tabelas 1-4 do artigo)"
+echo "06_tabelas_finais.R (tabelas 1-4 do artigo)"
 echo "  input : resultados/tabelas/lookup_completo.csv, dados/exoma/"
 echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
-/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 05_tabelas_finais.R
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 06_tabelas_finais.R
 
 EXIT_CODE=$?
 echo "=========================================="
 if [ $EXIT_CODE -eq 0 ]; then
-    echo "SUCCESS: 05_tabelas_finais.R completed at $(date)"
+    echo "SUCCESS: 06_tabelas_finais.R completed at $(date)"
 else
-    echo "FAILURE: 05_tabelas_finais.R exited with code $EXIT_CODE at $(date)"
+    echo "FAILURE: 06_tabelas_finais.R exited with code $EXIT_CODE at $(date)"
 fi
 echo "=========================================="

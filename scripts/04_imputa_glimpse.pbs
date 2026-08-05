@@ -1,0 +1,167 @@
+#!/bin/bash
+# 04_imputa_glimpse.pbs
+# Imputação (GLIMPSE2) dos sinais fine-mapped do MVP (não-codantes) nas 33
+# regiões usando os BAMs recalibrated dos casos do exoma phs000822.
+#
+# Fluxo (tutorial GLIMPSE2):
+#   1) 04_prepara_glimpse.R (env quali)      → regioes.txt, sites.txt, bams.txt
+#   2) phasing do 1KG (SHAPEIT5) por chr     → painel de referência fasedo
+#   3) GLIMPSE2_chunk/split_reference/phase  → imputação por janela
+#   4) GLIMPSE2_ligate por janela            → BCFs imputados
+#
+# Env: 'imputacao' (shapeit5, glimpse-bio, bcftools, samtools, plink2).
+#      R (04_prepara_glimpse.R) roda no env 'quali'.
+# Rodar dentro de scripts/:  qsub 04_imputa_glimpse.pbs
+# ─────────────────────────── CONFIG ───────────────────────────
+MICROMAMBA="/storage2/matheusbomfim/projects/micromamba/bin/micromamba"
+ENV_IMP="imputacao"      # ferramentas de imputação (env separado)
+ENV_R="quali"            # R (para o 04_prepara_glimpse.R)
+
+# Painel 1KG (PLINK, hg38) e mapas genéticos b38
+KG_PREFIX="/storage4/matheusbomfim/quali/1kg/1kg_hg38_autosomes"
+MAPS_DIR="/storage4/matheusbomfim/quali/1kg/maps_b38"
+
+# Diretório de trabalho (relativo à raiz do repo, submetido de scripts/)
+WORK_ROOT="resultados/glimpse"
+
+THREADS=8
+# ───────────────────────────────────────────────────────────────
+
+# CWD = PBS_O_WORKDIR (scripts/), raiz do repo = dirname
+cd "$PBS_O_WORKDIR" || exit 1
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+REPO_ROOT="$(dirname "$(pwd)")"
+WORK_ROOT="$REPO_ROOT/$WORK_ROOT"
+mkdir -p "$WORK_ROOT"/{chr_vcf,phased,chunks,split,impute,ligate}
+IMP() { "$MICROMAMBA" run -n "$ENV_IMP" "$@"; }
+RSCRIPT() { "$MICROMAMBA" run -n "$ENV_R" Rscript "$@"; }
+
+echo "=========================================="
+echo "04_imputa_glimpse.pbs (GLIMPSE2 imputation, 33 regiões MVP)"
+echo "  env imputação: $ENV_IMP | R: $ENV_R"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+set -e
+
+# ── 0. Pre-flight ─────────────────────────────────────────────
+echo "[0/5] Pre-flight..."
+for TOOL in SHAPEIT5_phase_common GLIMPSE2_chunk GLIMPSE2_split_reference \
+            GLIMPSE2_phase GLIMPSE2_ligate bcftools plink2; do
+  if ! IMP bash -lc "command -v $TOOL" >/dev/null 2>&1; then
+    echo "  ERRO: $TOOL não encontrado no env '$ENV_IMP'. Rode scripts/setup_imputacao_env.sh"
+    exit 1
+  fi
+done
+[ -s "$REPO_ROOT/dados/mvp/bc_signal.csv" ] || { echo "  ERRO: bc_signal.csv ausente"; exit 1; }
+echo "  OK (ferramentas e inputs presentes)"
+
+# ── 1. Gerar inputs (regiões, sites, bams) ─────────────────────
+echo "[1/5] Gerando inputs (04_prepara_glimpse.R)..."
+RSCRIPT 04_prepara_glimpse.R
+
+# ── 2. Phasing do 1KG por cromossomo (SHAPEIT5) ────────────────
+# Converte o PLINK do 1KG em VCF por chr e fasa com SHAPEIT5_phase_common.
+echo "[2/5] Phasing do 1KG (SHAPEIT5)..."
+CHRS=$(cut -f1 "$WORK_ROOT/regioes.txt" | sort -u)
+for CHR in $CHRS; do
+  VCF="$WORK_ROOT/chr_vcf/kg_chr${CHR}.vcf.gz"
+  PHASED="$WORK_ROOT/phased/kg_chr${CHR}.phased.vcf.gz"
+  MAP="$MAPS_DIR/chr${CHR}.b38.gmap.gz"
+  if [ ! -s "$PHASED" ]; then
+    [ -s "$MAP" ] || { echo "  ERRO: mapa $MAP ausente (baixe em setup_imputacao_env.sh)"; exit 1; }
+    echo "  chr$CHR: PLINK → VCF..."
+    IMP plink2 --bfile "$KG_PREFIX" --chr "$CHR" --recode vcf bgz \
+        --out "$WORK_ROOT/chr_vcf/kg_chr${CHR}"
+    IMP bcftools index -f "$VCF"
+    echo "  chr$CHR: phasing (SHAPEIT5, $THREADS threads)..."
+    IMP SHAPEIT5_phase_common --input "$VCF" --map "$MAP" \
+        --output "$PHASED" --thread "$THREADS"
+    IMP bcftools index -f "$PHASED"
+  else
+    echo "  chr$CHR: phasing já existe — pulando"
+  fi
+done
+
+# ── 3. Chunk + split_reference por janela ──────────────────────
+echo "[3/5] Chunking e split_reference..."
+while read -r CHR START END; do
+  REGION="chr${CHR}:${START}-${END}"
+  CHUNKS="$WORK_ROOT/chunks/chunks_chr${CHR}_${START}_${END}.txt"
+  PHASED="$WORK_ROOT/phased/kg_chr${CHR}.phased.vcf.gz"
+  MAP="$MAPS_DIR/chr${CHR}.b38.gmap.gz"
+  if [ ! -s "$CHUNKS" ]; then
+    echo "  ${REGION}: GLIMPSE2_chunk..."
+    IMP GLIMPSE2_chunk --input "$PHASED" --map "$MAP" --region "$REGION" \
+        --sequential --output "$CHUNKS"
+  fi
+  while IFS="" read -r LINE || [ -n "$LINE" ]; do
+    ID=$(echo "$LINE" | cut -d" " -f1)
+    IRG=$(echo "$LINE" | cut -d" " -f3)
+    ORG=$(echo "$LINE" | cut -d" " -f4)
+    CHRO=$(echo "$LINE" | cut -d" " -f2)
+    RS=$(echo "$IRG" | cut -d":" -f2 | cut -d"-" -f1)
+    RE=$(echo "$IRG" | cut -d":" -f2 | cut -d"-" -f2)
+    BIN="$WORK_ROOT/split/kg_${CHRO}_${RS}_${RE}.bin"
+    if [ ! -f "$BIN" ]; then
+      echo "  split_reference ${CHRO}:${IRG#*:}..."
+      IMP GLIMPSE2_split_reference --reference "$PHASED" --map "$MAP" \
+          --input-region "$IRG" --output-region "$ORG" \
+          --output "$WORK_ROOT/split/kg_${CHRO}_${RS}_${RE}"
+    fi
+  done < "$CHUNKS"
+done < "$WORK_ROOT/regioes.txt"
+
+# ── 4. Imputação (GLIMPSE2_phase) por chunk ────────────────────
+echo "[4/5] Imputação GLIMPSE2_phase (bams.txt)..."
+BAMS="$WORK_ROOT/bams.txt"
+[ -s "$BAMS" ] || { echo "  ERRO: bams.txt ausente"; exit 1; }
+NSAMP=$(wc -l < "$BAMS")
+echo "  Amostras alvo: $NSAMP"
+while read -r CHR START END; do
+  CHUNKS="$WORK_ROOT/chunks/chunks_chr${CHR}_${START}_${END}.txt"
+  while IFS="" read -r LINE || [ -n "$LINE" ]; do
+    IRG=$(echo "$LINE" | cut -d" " -f3)
+    CHRO=$(echo "$LINE" | cut -d" " -f2)
+    RS=$(echo "$IRG" | cut -d":" -f2 | cut -d"-" -f1)
+    RE=$(echo "$IRG" | cut -d":" -f2 | cut -d"-" -f2)
+    BIN="$WORK_ROOT/split/kg_${CHRO}_${RS}_${RE}.bin"
+    OUT="$WORK_ROOT/impute/imp_${CHRO}_${RS}_${RE}.bcf"
+    if [ ! -s "$OUT" ]; then
+      echo "  GLIMPSE2_phase ${CHRO}:${RS}-${RE}..."
+      IMP GLIMPSE2_phase --bam-list "$BAMS" --reference "$BIN" \
+          --output "$OUT" --threads "$THREADS"
+    fi
+  done < "$CHUNKS"
+done < "$WORK_ROOT/regioes.txt"
+
+# ── 5. Ligação por janela ──────────────────────────────────────
+echo "[5/5] GLIMPSE2_ligate..."
+while read -r CHR START END; do
+  CHUNKS="$WORK_ROOT/chunks/chunks_chr${CHR}_${START}_${END}.txt"
+  LST="$WORK_ROOT/ligate/list_chr${CHR}_${START}_${END}.txt"
+  LIG="$WORK_ROOT/ligate/imp_chr${CHR}_${START}_${END}.bcf"
+  : > "$LST"
+  while IFS="" read -r LINE || [ -n "$LINE" ]; do
+    IRG=$(echo "$LINE" | cut -d" " -f3)
+    CHRO=$(echo "$LINE" | cut -d" " -f2)
+    RS=$(echo "$IRG" | cut -d":" -f2 | cut -d"-" -f1)
+    RE=$(echo "$IRG" | cut -d":" -f2 | cut -d"-" -f2)
+    echo "$WORK_ROOT/impute/imp_${CHRO}_${RS}_${RE}.bcf" >> "$LST"
+  done < "$CHUNKS"
+  if [ ! -s "$LIG" ]; then
+    echo "  ligate chr${CHR}:${START}-${END}..."
+    IMP GLIMPSE2_ligate --input "$LST" --output "$LIG"
+  fi
+done < "$WORK_ROOT/regioes.txt"
+
+# ── 6. Associação dirigida (04_associa_glimpse.R) ─────────────
+echo "[6/6] Associação e classificação de direção..."
+RSCRIPT 04_associa_glimpse.R
+
+echo "=========================================="
+echo "SUCCESS: imputação GLIMPSE2 concluída em $(date)"
+echo "  BCFs ligados em: $WORK_ROOT/ligate/"
+echo "  Resultado: resultados/tabelas/glimpse_associacao.csv"
+echo "=========================================="

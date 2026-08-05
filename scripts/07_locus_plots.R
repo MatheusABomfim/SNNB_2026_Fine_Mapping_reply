@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# 06_locus_plots.R
+# 07_locus_plots.R
 # Gera locus plots (manhattan regional) dos top loci fine-mapped do MVP,
 # sobrepostos às summary statistics do exoma.
 #
@@ -51,7 +51,7 @@ suppressPackageStartupMessages({
 if (!dir.exists(OUT_FIGURAS)) dir.create(OUT_FIGURAS, recursive = TRUE)
 
 lookup <- read.csv(LOOKUP_CSV, stringsAsFactors = FALSE, check.names = FALSE)
-cat("== 06_locus_plots.R ==\n")
+cat("== 07_locus_plots.R ==\n")
 
 exoma <- read.delim(EXOMA_SUMSTATS, header = TRUE, stringsAsFactors = FALSE,
                     check.names = FALSE, comment.char = "#")

@@ -1,26 +1,26 @@
 #!/bin/bash
-#PBS -N 04-analise-ancestralidade
-#PBS -e 04-analise-ancestralidade.err
-#PBS -o 04-analise-ancestralidade.log
+#PBS -N 05-analise-ancestralidade
+#PBS -e 05-analise-ancestralidade.err
+#PBS -o 05-analise-ancestralidade.log
 #PBS -q workq
 
 cd "$PBS_O_WORKDIR"
 export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
 
 echo "=========================================="
-echo "04_analise_ancestralidade.R (consistencia por populacao)"
+echo "05_analise_ancestralidade.R (consistencia por populacao)"
 echo "  input : resultados/tabelas/lookup_completo.csv"
 echo "Start time: $(date)"
 echo "Working directory: $(pwd)"
 echo "=========================================="
 
-/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 04_analise_ancestralidade.R
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 05_analise_ancestralidade.R
 
 EXIT_CODE=$?
 echo "=========================================="
 if [ $EXIT_CODE -eq 0 ]; then
-    echo "SUCCESS: 04_analise_ancestralidade.R completed at $(date)"
+    echo "SUCCESS: 05_analise_ancestralidade.R completed at $(date)"
 else
-    echo "FAILURE: 04_analise_ancestralidade.R exited with code $EXIT_CODE at $(date)"
+    echo "FAILURE: 05_analise_ancestralidade.R exited with code $EXIT_CODE at $(date)"
 fi
 echo "=========================================="
