@@ -5,12 +5,12 @@
 #
 # Input :
 #   - resultados/tabelas/lookup_completo.csv   (output do 02_lookup_exoma.R)
-#   - dados/exoma/gwas_dbgap_+vep.tsv          (sumstats exoma, para o locus)
+#   - gwas/gwas_prod/exoma_sumstats.txt        (sumstats exoma, output do 05.5)
 # Output: resultados/figuras/locus_plot_*.png
 
 # ─────────────────────────── CONFIG ───────────────────────────
 LOOKUP_CSV <- "resultados/tabelas/lookup_completo.csv"
-EXOMA_SUMSTATS <- "dados/exoma/gwas_dbgap_sem_filtragem+joint_call+vep.tsv"
+EXOMA_SUMSTATS <- "/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod/exoma_sumstats.txt"
 OUT_FIGURAS <- "resultados/figuras"
 
 # Nº de top loci a plotar
@@ -32,13 +32,17 @@ EX_RSID <- "rsid"; EX_CHR <- "chr"; EX_BP <- "bp"; EX_PVAL <- "pval"
 
 # Caminhos relativos à raiz do repo (o pai do dir deste script), para o script
 # funcionar rodado de qualquer CWD (ex.: via PBS em scripts/).
+# Caminhos absolutos são mantidos como estão.
+abs_path <- function(p) {
+  if (grepl("^/", p)) p else file.path(REPO_ROOT, p)
+}
 args0 <- commandArgs(trailingOnly = FALSE)
 fidx <- grep("^--file=", args0)
 SCRIPT_DIR <- if (length(fidx)) dirname(sub("^--file=", "", args0[fidx])) else getwd()
 REPO_ROOT <- normalizePath(file.path(SCRIPT_DIR, ".."))
-LOOKUP_CSV      <- file.path(REPO_ROOT, LOOKUP_CSV)
-EXOMA_SUMSTATS  <- file.path(REPO_ROOT, EXOMA_SUMSTATS)
-OUT_FIGURAS     <- file.path(REPO_ROOT, OUT_FIGURAS)
+LOOKUP_CSV      <- abs_path(LOOKUP_CSV)
+EXOMA_SUMSTATS  <- abs_path(EXOMA_SUMSTATS)
+OUT_FIGURAS     <- abs_path(OUT_FIGURAS)
 
 suppressPackageStartupMessages({
   library(ggplot2)
@@ -51,6 +55,7 @@ cat("== 05_locus_plots.R ==\n")
 
 exoma <- read.delim(EXOMA_SUMSTATS, header = TRUE, stringsAsFactors = FALSE,
                     check.names = FALSE, comment.char = "#")
+names(exoma) <- tolower(names(exoma))
 rename_map <- c(EX_RSID = "RSID", EX_CHR = "CHR", EX_BP = "BP", EX_PVAL = "PVAL")
 exoma <- exoma %>% rename(any_of(rename_map))
 exoma$PVAL <- suppressWarnings(as.numeric(exoma$PVAL))

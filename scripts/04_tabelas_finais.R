@@ -5,12 +5,12 @@
 # Input :
 #   - resultados/tabelas/lookup_completo.csv   (output do 02_lookup_exoma.R)
 #   - resultados/magma/exoma.genes.out         (MAGMA, colaborador — opcional)
-#   - dados/exoma/gwas_dbgap_+vep.tsv          (sumstats exoma)
+#   - gwas/gwas_prod/exoma_sumstats.txt        (sumstats exoma, output do 05.5)
 # Output: resultados/tabelas/tabela{1,2,3,4}_*.csv
 # ─────────────────────────── CONFIG ───────────────────────────
 LOOKUP_CSV <- "resultados/tabelas/lookup_completo.csv"
 MAGMA_OUT  <- "resultados/magma/exoma.genes.out"   # opcional
-EXOMA_SUMSTATS <- "dados/exoma/gwas_dbgap_sem_filtragem+joint_call+vep.tsv"
+EXOMA_SUMSTATS <- "/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod/exoma_sumstats.txt"
 OUT_TABELAS <- "resultados/tabelas"
 
 # Colunas do lookup
@@ -27,14 +27,18 @@ EX_BETA <- "beta"; EX_PVAL <- "pval"
 
 # Caminhos relativos à raiz do repo (o pai do dir deste script), para o script
 # funcionar rodado de qualquer CWD (ex.: via PBS em scripts/).
+# Caminhos absolutos são mantidos como estão.
+abs_path <- function(p) {
+  if (grepl("^/", p)) p else file.path(REPO_ROOT, p)
+}
 args0 <- commandArgs(trailingOnly = FALSE)
 fidx <- grep("^--file=", args0)
 SCRIPT_DIR <- if (length(fidx)) dirname(sub("^--file=", "", args0[fidx])) else getwd()
 REPO_ROOT <- normalizePath(file.path(SCRIPT_DIR, ".."))
-LOOKUP_CSV      <- file.path(REPO_ROOT, LOOKUP_CSV)
-MAGMA_OUT       <- file.path(REPO_ROOT, MAGMA_OUT)
-EXOMA_SUMSTATS  <- file.path(REPO_ROOT, EXOMA_SUMSTATS)
-OUT_TABELAS     <- file.path(REPO_ROOT, OUT_TABELAS)
+LOOKUP_CSV      <- abs_path(LOOKUP_CSV)
+MAGMA_OUT       <- abs_path(MAGMA_OUT)
+EXOMA_SUMSTATS  <- abs_path(EXOMA_SUMSTATS)
+OUT_TABELAS     <- abs_path(OUT_TABELAS)
 
 suppressPackageStartupMessages(library(dplyr))
 if (!dir.exists(OUT_TABELAS)) dir.create(OUT_TABELAS, recursive = TRUE)
@@ -62,6 +66,7 @@ write.csv(tabela2, file.path(OUT_TABELAS, "tabela2_discordantes.csv"), row.names
 mvp_rsids <- unique(lookup$RSID)
 exoma <- read.delim(EXOMA_SUMSTATS, header = TRUE, stringsAsFactors = FALSE,
                     check.names = FALSE, comment.char = "#")
+names(exoma) <- tolower(names(exoma))
 # Padronizar nomes de colunas do exoma
 rename_map <- c(EX_RSID = "RSID", EX_CHR = "CHR", EX_BP = "BP",
                 EX_MAF = "MAF", EX_BETA = "BETA", EX_PVAL = "PVAL")

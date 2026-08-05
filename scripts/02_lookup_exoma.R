@@ -6,12 +6,12 @@
 #
 # Input :
 #   - dados/mvp/bc_signal.csv                (output do 01_filtrar_mvp.R)
-#   - dados/exoma/gwas_dbgap_+vep.tsv         (sumstats exoma com VEP)
+#   - gwas/gwas_prod/exoma_sumstats.txt        (sumstats exoma, output do 05.5)
 # Output: resultados/tabelas/lookup_completo.csv, resultados/tabelas/top_consistentes.csv
 
 # ─────────────────────────── CONFIG ───────────────────────────
 MVP_SIGNAL <- "dados/mvp/bc_signal.csv"
-EXOMA_SUMSTATS <- "dados/exoma/gwas_dbgap_sem_filtragem+joint_call+vep.tsv"
+EXOMA_SUMSTATS <- "/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod/exoma_sumstats.txt"
 OUT_TABELAS <- "resultados/tabelas"
 
 # Mapeamento de colunas do MVP (do bc_signal.csv)
@@ -36,13 +36,17 @@ EX_N     <- "n"
 
 # Caminhos relativos à raiz do repo (o pai do dir deste script), para o script
 # funcionar rodado de qualquer CWD (ex.: via PBS em scripts/).
+# Caminhos absolutos são mantidos como estão.
+abs_path <- function(p) {
+  if (grepl("^/", p)) p else file.path(REPO_ROOT, p)
+}
 args0 <- commandArgs(trailingOnly = FALSE)
 fidx <- grep("^--file=", args0)
 SCRIPT_DIR <- if (length(fidx)) dirname(sub("^--file=", "", args0[fidx])) else getwd()
 REPO_ROOT <- normalizePath(file.path(SCRIPT_DIR, ".."))
-MVP_SIGNAL    <- file.path(REPO_ROOT, MVP_SIGNAL)
-EXOMA_SUMSTATS <- file.path(REPO_ROOT, EXOMA_SUMSTATS)
-OUT_TABELAS   <- file.path(REPO_ROOT, OUT_TABELAS)
+MVP_SIGNAL    <- abs_path(MVP_SIGNAL)
+EXOMA_SUMSTATS <- abs_path(EXOMA_SUMSTATS)
+OUT_TABELAS   <- abs_path(OUT_TABELAS)
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -55,6 +59,7 @@ cat("== 02_lookup_exoma.R ==\n")
 mvp_signal <- read.csv(MVP_SIGNAL, stringsAsFactors = FALSE, check.names = FALSE)
 exoma <- read.delim(EXOMA_SUMSTATS, header = TRUE, stringsAsFactors = FALSE,
                     check.names = FALSE, comment.char = "#")
+names(exoma) <- tolower(names(exoma))
 
 cat(sprintf("Coding variants MVP: %d\n", nrow(mvp_signal)))
 cat(sprintf("SNPs no exoma: %d\n", nrow(exoma)))
