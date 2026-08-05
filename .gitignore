@@ -1,0 +1,49 @@
+# Dados brutos — nunca versionar
+dados/**/*.xlsx
+dados/**/*.xls
+dados/**/*.tsv
+dados/**/*.tsv.gz
+dados/**/*.txt
+dados/**/*.vcf
+dados/**/*.vcf.gz
+dados/**/*.bed
+dados/**/*.bim
+dados/**/*.fam
+dados/**/*.pgen
+dados/**/*.pvar
+dados/**/*.psam
+dados/**/*.csv
+dados/**/*.RData
+
+# Referências externas
+dados/referencias/*
+!dados/referencias/.gitkeep
+
+# Outputs e resultados (arquivos gerados não são versionados)
+resultados/**/*.csv
+resultados/**/*.tsv
+resultados/**/*.txt
+resultados/**/*.out
+resultados/**/*.log
+resultados/**/*.rds
+resultados/**/*.RData
+resultados/**/*.png
+resultados/**/*.pdf
+resultados/**/*.gz
+!resultados/**/.gitkeep
+resultados/**/*.png
+resultados/**/*.pdf
+
+# Ambiente e sistema
+*.log
+*.o[0-9]*
+*.e[0-9]*
+*.err
+.Rhistory
+.RData
+.Rproj.user/
+.DS_Store
+Thumbs.db
+*~
+.vscode/
+.idea/
