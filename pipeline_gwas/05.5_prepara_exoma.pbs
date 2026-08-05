@@ -1,0 +1,27 @@
+#!/bin/bash
+#PBS -N 05.5-prep-exoma
+#PBS -e 05.5-prep-exoma.err
+#PBS -o 05.5-prep-exoma.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "Prepara exoma_sumstats.txt (anotacao rsID via bcftools)"
+echo "  input : gwas/gwas_prod/gwas_ssf.tsv"
+echo "  output: gwas/gwas_prod/exoma_sumstats.txt"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+/storage2/matheusbomfim/projects/micromamba/bin/micromamba run -n quali Rscript 05.5_prepara_exoma.R
+
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: exoma_sumstats.txt generated at $(date)"
+else
+    echo "FAILURE: 05.5_prepara_exoma.R exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="
