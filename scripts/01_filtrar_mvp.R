@@ -1,8 +1,7 @@
 #!/usr/bin/env Rscript
 # 01_filtrar_mvp.R
 # Filtrar o fine-mapping do MVP (Verma et al. 2024, Science) para:
-#   1) câncer de mama
-#   2) variantes codantes (VEP annotation)
+#   1) câncer de mama (coluna Description = "Biological Mother: Cancer, Breast")
 #
 # Input : fine_mapping_GCST90479802.xlsx  (ou GCST90479802.tsv.gz)
 # Output: dados/mvp/bc_coding.csv, dados/mvp/bc_todos_sinais.csv,
@@ -28,20 +27,6 @@ COL_SE        <- "SE Population"        # erro padrão
 COL_EAF       <- "EAF Population"       # frequência do alelo de efeito
 COL_LOCUS     <- "Locus"                # região genômica
 COL_NOVEL     <- "Previously Unidentified if High PIP"  # novo ou conhecido
-
-# Tipos de variante considerados codantes
-CODING_TYPES <- c(
-  "missense_variant",
-  "synonymous_variant",
-  "stop_gained",
-  "stop_lost",
-  "start_lost",
-  "splice_donor_variant",
-  "splice_acceptor_variant",
-  "inframe_deletion",
-  "inframe_insertion",
-  "protein_altering_variant"
-)
 
 OUT_DIR <- "dados/mvp"
 # ───────────────────────────────────────────────────────────────
@@ -118,18 +103,10 @@ if (COL_DESC != "" && COL_DESC %in% colnames(mvp)) {
 }
 cat(sprintf("Sinais de câncer de mama (Biological Mother): %d\n", nrow(bc)))
 
-# 3. Filtrar variantes codantes
-if (COL_VEP != "" && COL_VEP %in% colnames(bc)) {
-  vep_col <- bc[[COL_VEP]]
-  # VEP annotation pode vir como string única ou múltiplas (CSQ); detectar coding
-  bc_coding <- bc[vapply(vep_col, function(x) {
-    any(CODING_TYPES %in% strsplit(as.character(x), "[&,]")[[1]])
-  }, logical(1)), , drop = FALSE]
-} else {
-  warning(sprintf("Coluna '%s' (COL_VEP) não encontrada. Mantendo todos os sinais.", COL_VEP))
-  bc_coding <- bc
-}
-cat(sprintf("Coding variants no câncer de mama: %d\n", nrow(bc_coding)))
+# 3. Sem filtro por variantes codantes — mantém todos os sinais de mãe-mama
+#    (a curadoria por p-value/priorização é feita depois).
+bc_coding <- bc
+cat(sprintf("Sinais mantidos (sem filtro coding): %d\n", nrow(bc_coding)))
 
 # 4. Estatísticas descritivas
 cat("\n--- Por tipo de VEP ---\n")
