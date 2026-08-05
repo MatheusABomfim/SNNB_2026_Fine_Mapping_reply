@@ -1,0 +1,66 @@
+#!/bin/bash
+#PBS -N 04.1-grid-test
+#PBS -e 04.1-grid-test.err
+#PBS -o 04.1-grid-test.log
+#PBS -q workq
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+MAMBA="/storage2/matheusbomfim/projects/micromamba/bin/micromamba"
+GRID_DIR="/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/grid_$(date +%Y%m%d_%H%M%S)"
+LOG="$GRID_DIR/resumo.csv"
+
+mkdir -p "$GRID_DIR"
+echo "metodo,pop,n_pcs,output_dir,lambda,n_snpqc_vars,n_results,n_sig,n_sugg" > "$LOG"
+
+echo "Grid output: $GRID_DIR"
+echo "Start time:  $(date)"
+
+for method in logistic glm firth; do
+  for pop in amr-only all; do
+    for n_pcs in 1 2 3 4; do
+      logfile="$GRID_DIR/${method}_${pop}_pc${n_pcs}.log"
+      echo ""
+      echo "=== $method --$pop --n-pcs $n_pcs ===" | tee -a "$logfile"
+
+      $MAMBA run -n quali Rscript 04_gwas_assoc.R "--$method" "--$pop" "--n-pcs" "$n_pcs" \
+        2>&1 | tee -a "$logfile"
+
+      lambda=$(grep -oP 'Lambda GC: \K[\d.]+' "$logfile" | tail -1)
+      out_dir=$(grep -oP 'GWAS \.assoc: \K/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/[0-9_]+' "$logfile" | head -1 | xargs dirname 2>/dev/null)
+      n_vars=$(grep -oP 'After SNP QC.*: \K\d+' "$logfile" | tail -1)
+      n_results=$(grep -oP '^\s+Results: \K\d+' "$logfile" | tail -1)
+      n_sig=$(grep -oP 'Significant.*: \K\d+' "$logfile" | tail -1)
+      n_sugg=$(grep -oP 'Suggestive.*: \K\d+' "$logfile" | tail -1)
+
+      echo "$method,$pop,$n_pcs,$out_dir,$lambda,$n_vars,$n_results,$n_sig,$n_sugg" >> "$LOG"
+    done
+  done
+done
+
+for method in logistic glm firth; do
+  for n_pcs in 0 2 4; do
+    logfile="$GRID_DIR/${method}_pcaMatch_k3_pc${n_pcs}.log"
+    echo ""
+    echo "=== $method --pca-match --match-k 3 --n-pcs $n_pcs ===" | tee -a "$logfile"
+
+    $MAMBA run -n quali Rscript 04_gwas_assoc.R "--$method" --pca-match "--match-k" "3" "--n-pcs" "$n_pcs" \
+      2>&1 | tee -a "$logfile"
+
+    lambda=$(grep -oP 'Lambda GC: \K[\d.]+' "$logfile" | tail -1)
+    out_dir=$(grep -oP 'GWAS \.assoc: \K/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/[0-9_]+' "$logfile" | head -1 | xargs dirname 2>/dev/null)
+    n_vars=$(grep -oP 'After SNP QC.*: \K\d+' "$logfile" | tail -1)
+    n_results=$(grep -oP '^\s+Results: \K\d+' "$logfile" | tail -1)
+    n_sig=$(grep -oP 'Significant.*: \K\d+' "$logfile" | tail -1)
+    n_sugg=$(grep -oP 'Suggestive.*: \K\d+' "$logfile" | tail -1)
+
+    echo "$method,pcaMatch_k=3,$n_pcs,$out_dir,$lambda,$n_vars,$n_results,$n_sig,$n_sugg" >> "$LOG"
+  done
+done
+
+echo ""
+echo "=== RESUMO ==="
+column -t -s',' "$LOG"
+echo ""
+echo "End time: $(date)"

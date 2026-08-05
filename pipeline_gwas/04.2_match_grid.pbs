@@ -1,0 +1,81 @@
+#!/bin/bash
+#PBS -N 04.2-match-grid
+#PBS -e 04.2-match-grid.err
+#PBS -o 04.2-match-grid.log
+#PBS -q workq
+
+# -----------------------------------------------------------------
+# 04.2_match_grid.pbs - Teste de matching PCAmatchR + Firth + LDSC
+#
+# Executar APOS o 04.1_grid_test.pbs (que acha o melhor metodo/n_pcs):
+#   qsub 04.2_match_grid.pbs
+# -----------------------------------------------------------------
+
+cd "$PBS_O_WORKDIR"
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+MAMBA="/storage2/matheusbomfim/projects/micromamba/bin/micromamba"
+GRID_DIR="/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/match_grid_$(date +%Y%m%d_%H%M%S)"
+LOG="$GRID_DIR/resumo.csv"
+
+mkdir -p "$GRID_DIR"
+echo "metodo,match_k,n_pcs,output_dir,lambda_r,intercept,atten_ratio,n_cases,n_controls,n_results,n_sig,n_sugg" > "$LOG"
+
+echo "Grid output: $GRID_DIR"
+echo "Start time:  $(date)"
+
+descricao() {
+  local k=$1 p=$2
+  if [ "$p" = "2" ]; then echo "matching + PC1-PC2 (ajuste fino)"
+  elif [ "$p" = "3" ]; then echo "matching + PC1-PC3 (ponto otimo)"
+  else echo "matching + PC1-PC4 (dupla correcao)"
+  fi
+}
+
+for k in 1 2 3; do
+  for n_pcs in 2 3 4; do
+    logfile="$GRID_DIR/firth_matchK${k}_pc${n_pcs}.log"
+    objetivo=$(descricao $k $n_pcs)
+    echo ""
+    echo "=== firth --pca-match --match-k $k --n-pcs $n_pcs ===" | tee -a "$logfile"
+    echo "  Objetivo: 1:$k, $objetivo" | tee -a "$logfile"
+
+    $MAMBA run -n quali Rscript 04_gwas_assoc.R \
+      --firth --pca-match "--match-k" "$k" "--n-pcs" "$n_pcs" \
+      2>&1 | tee -a "$logfile"
+
+    lambda_r=$(grep -oP 'Lambda GC: \K[\d.]+' "$logfile" | head -1)
+    intercept=$(grep -oP 'LDSC intercept: \K[\d.]+' "$logfile" | tail -1)
+    atten_ratio=$(grep -oP 'LDSC atten.ratio: \K[\d.]+' "$logfile" | tail -1)
+    out_dir=$(grep -oP 'GWAS \.assoc: \K/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/[0-9_]+' "$logfile" | head -1 | xargs dirname 2>/dev/null)
+    n_cases=$(grep -oP 'Cases selected: \K\d+' "$logfile" | tail -1)
+    n_controls=$(grep -oP 'Controls selected: \K\d+' "$logfile" | tail -1)
+    n_results=$(grep -oP '^\s+Results: \K\d+' "$logfile" | tail -1)
+    n_sig=$(grep -oP 'Significant.*: \K\d+' "$logfile" | tail -1)
+    n_sugg=$(grep -oP 'Suggestive.*: \K\d+' "$logfile" | tail -1)
+
+    echo "firth,$k,$n_pcs,$out_dir,$lambda_r,$intercept,$atten_ratio,$n_cases,$n_controls,$n_results,$n_sig,$n_sugg" >> "$LOG"
+  done
+done
+
+echo ""
+echo "=== RESUMO ==="
+echo "match_k  n_pcs   N      lamb_R  intercp  atn_ratio  n_sig  n_sugg  Objetivo"
+echo "------------------------------------------------------------------------------"
+for k in 1 2 3; do
+  for n_pcs in 2 3 4; do
+    line=$(awk -F',' -v k="$k" -v p="$n_pcs" '$2==k && $3==p {printf "%s %s %s %s %s %s %s", $8, $9, $6, $5, $7, $11, $12}' "$LOG")
+    n_cases=$(echo "$line" | awk '{print $1}')
+    n_ctrl=$(echo "$line" | awk '{print $2}')
+    intercept=$(echo "$line" | awk '{print $3}')
+    lambda_r=$(echo "$line" | awk '{print $4}')
+    atten_ratio=$(echo "$line" | awk '{print $5}')
+    n_sig=$(echo "$line" | awk '{print $6}')
+    n_sugg=$(echo "$line" | awk '{print $7}')
+    total=$((n_cases + n_ctrl))
+    objetivo=$(descricao $k $n_pcs)
+    printf "1:%-7s %-7s %-8s %-8s %-8s %-8s %-6s %-6s %s\n" "$k" "$n_pcs" "$total" "${lambda_r:-NA}" "${intercept:-NA}" "${atten_ratio:-NA}" "${n_sig:-0}" "${n_sugg:-0}" "$objetivo"
+  done
+done
+echo ""
+echo "End time: $(date)"
