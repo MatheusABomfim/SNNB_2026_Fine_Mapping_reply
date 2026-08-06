@@ -57,6 +57,10 @@ if (!"se" %in% names(dt) && "log(or)_se" %in% names(dt)) {
   setnames(dt, "log(or)_se", "se")
 }
 
+# Normalizar contigs para formato VCF (adicionar prefixo "chr" se ausente)
+# O VCF do Sarek usa contigs com prefixo chr (ex: chr1), enquanto o .assoc pode usar apenas números
+dt[, chr := ifelse(grepl("^chr|^GL|^KI|^JH|^A|un_", chr), chr, paste0("chr", chr))]
+
 required_cols <- c("chr", "pos", "id", "ref", "alt", "beta", "p")
 missing_cols <- setdiff(required_cols, names(dt))
 if (length(missing_cols) > 0) {
