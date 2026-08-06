@@ -13,7 +13,7 @@
 #   resultados/tabelas/gwas_hits_sugestivos.csv
 # ──────────────────────────────────────────────────────────────────────────────
 
-suppress(data.table, quietly = TRUE)
+suppressPackageStartupMessages(library(data.table))
 options(width = 120)
 
 # ── Args ──────────────────────────────────────────────────────────────────────
@@ -24,7 +24,6 @@ if (length(args) < 1) {
 gwas_file <- args[1]
 vep_vcf   <- if (length(args) >= 2 && file.exists(args[2])) args[2] else NULL
 out_dir   <- if (length(args) >= 3) args[3] else "resultados/tabelas"
-dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # ── Helper: caminho absoluto relativo ao repo ─────────────────────────────────
 args0 <- commandArgs(trailingOnly = FALSE)
@@ -34,7 +33,8 @@ repo_root <- normalizePath(file.path(script_dir, ".."))
 abs_path <- function(p) if (grepl("^/", p)) p else file.path(repo_root, p)
 
 gwas_file <- abs_path(gwas_file)
-out_dir <- abs_path(out_dir)
+out_dir   <- abs_path(out_dir)
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 cat("== 04.4_hits_gwas.R ==\n")
 cat("GWAS file:", gwas_file, "\n")
