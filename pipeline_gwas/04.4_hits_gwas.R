@@ -83,6 +83,16 @@ cat(sprintf("Hits sugestivos     (P < 1e-5): %d\n", nrow(sug_hits)))
 # ── 3. Anotar com VEP (se disponível) ──────────────────────────────────────────
 if (!is.null(vep_vcf)) {
   cat("[3/4] Anotando com VEP...\n")
+  
+  # Verificar se VCF e índice existem
+  vep_tbi <- paste0(vep_vcf, ".tbi")
+  if (!file.exists(vep_vcf)) {
+    cat("  ERRO: VCF VEP não encontrado:", vep_vcf, "\n")
+  } else if (!file.exists(vep_tbi)) {
+    cat("  AVISO: Índice .tbi não encontrado:", vep_tbi, "\n")
+    cat("  Criando índice...\n")
+    system2("bcftools", args = c("index", vep_vcf), stdout = FALSE, stderr = FALSE)
+  }
 
   # Extrair apenas regiões de interesse do VCF via bcftools
   regions_file <- tempfile(fileext = ".bed")
@@ -96,18 +106,44 @@ if (!is.null(vep_vcf)) {
     end   = all_hits$pos
   )
   fwrite(bed_dt, regions_file, sep = "\t", col.names = FALSE)
+  cat("  Regiões BED geradas (primeiras 5):\n")
+  head_lines <- readLines(regions_file, n = 5)
+  for (hl in head_lines) cat("    ", hl, "\n", sep = "")
 
   vep_tmp <- tempfile(fileext = ".tsv")
+  
+  # Estratégia 1: bcftools query com -R (BED)
   bcftools_cmd <- sprintf(
-    "bcftools query -R '%s' -f '%%CHROM\\t%%POS\\t%%ID\\t%%REF\\t%%ALT\\t%%CSQ\\n' '%s' > '%s'",
+    "bcftools query -R '%s' -f '%%CHROM\\t%%POS\\t%%ID\\t%%REF\\t%%ALT\\t%%CSQ\\n' '%s' > '%s' 2>&1",
     regions_file, vep_vcf, vep_tmp
   )
-  cat("  Comando VEP: ", bcftools_cmd, "\n", sep = "")
+  cat("  Comando VEP (query -R): ", bcftools_cmd, "\n", sep = "")
   system(bcftools_cmd, intern = FALSE)
-
+  
   vep_dt <- tryCatch(fread(vep_tmp, sep = "\t",
                            col.names = c("chr", "pos", "id", "ref", "alt", "csq")),
                      error = function(e) NULL)
+
+  # Estratégia 2: fallback com bcftools view + grep (mais lento mas mais confiável)
+  if (is.null(vep_dt) || nrow(vep_dt) == 0) {
+    cat("  Fallback: usando bcftools view + awk...\n")
+    vep_tmp2 <- tempfile(fileext = ".tsv")
+    
+    # Concatenar posições para -r
+    regions_str <- paste(sprintf("%s:%d-%d", bed_dt$chr, bed_dt$start + 1, bed_dt$end), collapse = ",")
+    bcftools_cmd2 <- sprintf(
+      "bcftools view -r '%s' '%s' 2>/dev/null | bcftools query -f '%%CHROM\\t%%POS\\t%%ID\\t%%REF\\t%%ALT\\t%%CSQ\\n' > '%s' 2>&1",
+      regions_str, vep_vcf, vep_tmp2
+    )
+    cat("  Comando VEP (view -r): ", bcftools_cmd2, "\n", sep = "")
+    system(bcftools_cmd2, intern = FALSE)
+    
+    vep_dt <- tryCatch(fread(vep_tmp2, sep = "\t",
+                             col.names = c("chr", "pos", "id", "ref", "alt", "csq")),
+                       error = function(e) NULL)
+    
+    if (!is.null(vep_dt)) unlink(vep_tmp2)
+  }
 
   if (!is.null(vep_dt) && nrow(vep_dt) > 0) {
     # Extrair consequence, symbol, gene, impact do CSQ (primeiro transcript)
@@ -137,10 +173,13 @@ if (!is.null(vep_vcf)) {
     sug_hits <- merge(sug_hits, vep_clean, by = c("chr", "pos", "id"), all.x = TRUE)
 
     unlink(vep_tmp); unlink(regions_file)
+    if (exists("vep_tmp2")) unlink(vep_tmp2)
   } else {
-    cat("AVISO: Ainda sem anotação VEP — verifique:\n")
+    cat("⚠ AVISO: Ainda sem anotação VEP — verifique no cluster:\n")
+    cat("  - VCF existe? ", file.exists(vep_vcf), "\n")
+    cat("  - Índice .tbi existe? ", file.exists(vep_tbi), "\n")
     cat("  - Contig naming (chr vs number): OK (normalizado)\n")
-    cat("  - bcftools query funcionando? Tente manualmente:\n")
+    cat("  - bcftools query -R funcionando?\n")
     cat(sprintf("    bcftools query -R <%s> -f '%%CHROM\\t%%POS\\t%%CSQ\\n' '%s'\n",
                 regions_file, vep_vcf))
   }
