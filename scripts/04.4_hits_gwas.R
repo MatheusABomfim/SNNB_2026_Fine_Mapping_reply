@@ -87,7 +87,7 @@ if (!is.null(vep_vcf)) {
                            col.names = c("chr", "pos", "id", "ref", "alt", "csq")),
                      error = function(e) NULL)
 
-    if (!is.null(vep_dt) && nrow(vep_dt) > 0) {
+  if (!is.null(vep_dt) && nrow(vep_dt) > 0) {
     # Extrair consequence, symbol, gene, impact do CSQ (primeiro transcript)
     parse_csq <- function(csq_str) {
       if (is.na(csq_str) || csq_str == "") return(list("", "", "", ""))
@@ -122,9 +122,6 @@ if (!is.null(vep_vcf)) {
 
 # ── 4. Exportar CSVs ───────────────────────────────────────────────────────────
 cat("[4/4] Salvando resultados...\n")
-
-cols_sig <- c("chr", "pos", "id", "ref", "alt", "beta", "p",
-              "consequence", "symbol", "gene", "impact", "is_sig")
 
 fwrite(sig_hits, file.path(out_dir, "gwas_hits_significativos.csv"))
 fwrite(sug_hits, file.path(out_dir, "gwas_hits_sugestivos.csv"))
