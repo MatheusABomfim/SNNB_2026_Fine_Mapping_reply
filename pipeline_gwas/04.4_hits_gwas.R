@@ -85,17 +85,24 @@ if (!is.null(vep_vcf)) {
   cat("[3/4] Anotando com VEP...\n")
 
   # Extrair apenas regiões de interesse do VCF via bcftools
-  regions_file <- tempfile(fileext = ".txt")
+  regions_file <- tempfile(fileext = ".bed")
   all_hits <- rbind(sig_hits[, .(chr, pos, id)],
                     sug_hits[, .(chr, pos, id)],
                     fill = TRUE)
-  fwrite(all_hits, regions_file, sep = "\t", col.names = FALSE)
+  # Converter para formato BED (0-based start, 1-based end)
+  bed_dt <- data.table(
+    chr   = all_hits$chr,
+    start = all_hits$pos - 1,
+    end   = all_hits$pos
+  )
+  fwrite(bed_dt, regions_file, sep = "\t", col.names = FALSE)
 
   vep_tmp <- tempfile(fileext = ".tsv")
   bcftools_cmd <- sprintf(
     "bcftools query -R '%s' -f '%%CHROM\\t%%POS\\t%%ID\\t%%REF\\t%%ALT\\t%%CSQ\\n' '%s' > '%s'",
     regions_file, vep_vcf, vep_tmp
   )
+  cat("  Comando VEP: ", bcftools_cmd, "\n", sep = "")
   system(bcftools_cmd, intern = FALSE)
 
   vep_dt <- tryCatch(fread(vep_tmp, sep = "\t",
@@ -131,7 +138,11 @@ if (!is.null(vep_vcf)) {
 
     unlink(vep_tmp); unlink(regions_file)
   } else {
-    cat("Aviso: VEP retornou dados vazios ou não foi possível parsear.\n")
+    cat("AVISO: Ainda sem anotação VEP — verifique:\n")
+    cat("  - Contig naming (chr vs number): OK (normalizado)\n")
+    cat("  - bcftools query funcionando? Tente manualmente:\n")
+    cat(sprintf("    bcftools query -R <%s> -f '%%CHROM\\t%%POS\\t%%CSQ\\n' '%s'\n",
+                regions_file, vep_vcf))
   }
 }
 
