@@ -82,11 +82,55 @@ for CHR in $CHRS; do
   MAP="$MAPS_DIR/chr${CHR}.b38.gmap.gz"
   if [ ! -s "$PHASED" ]; then
     [ -s "$MAP" ] || { echo "  ERRO: mapa $MAP ausente (baixe em setup_imputacao_env.sh)"; exit 1; }
-    echo "  chr$CHR: PLINK → VCF (com AC/AN nativo)..."
+    echo "  chr$CHR: PLINK → VCF + AC/AN..."
     # VCF contigs sem prefixo chr (ex: 10), casando com --region 10 do SHAPEIT5.
-    # Flag 'full' inclui AC/AN/AF INFO nativamente (exigido pelo SHAPEIT5 phase_common).
+    # --recode vcf bgz exporta sem AC/AN; adicionamos manualmente via plugin ou Python.
     IMP plink2 --bfile "$KG_PREFIX" --chr "$CHR" \
-        --recode vcf bgz full --out "$WORK_ROOT/chr_vcf/kg_chr${CHR}"
+        --recode vcf bgz --out "$WORK_ROOT/chr_vcf/kg_chr${CHR}"
+
+    # Adicionar AC/AN INFO fields (exigidos pelo SHAPEIT5 phase_common)
+    # Tenta plugin bcftools +fill-tags (hyphen); fallback Python se .so ausente
+    IMP bcftools +fill-tags "$VCF" -- -t AC,AN 2>/dev/null || true
+    if ! zcat "$VCF" | head -n 200 | grep -q "##INFO=<ID=AC"; then
+      echo "  chr$CHR: plugin fill-tags ausente — adicionando AC/AN via Python..."
+      IMP python3 - "$VCF" <<'PYEOF'
+import gzip, sys, re
+vcf = sys.argv[1]
+lines = []
+ac_header = '##INFO=<ID=AC,Number=A,Type=Integer,Description="Alternate allele count">'
+an_header = '##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles">'
+with gzip.open(vcf, 'rt') as f:
+    for line in f:
+        lines.append(line)
+if not any(l.startswith(ac_header.split('=')[0]) for l in lines):
+    new_lines = []
+    for line in lines:
+        if line.startswith('##INFO'):
+            new_lines.append(ac_header + '\n')
+            new_lines.append(an_header + '\n')
+        new_lines.append(line)
+    lines = new_lines
+with gzip.open(vcf, 'wt') as f:
+    for i, line in enumerate(lines):
+        if line.startswith('#'):
+            f.write(line)
+        else:
+            cols = line.rstrip().split('\t')
+            info = cols[7]
+            gts = [c.split(':')[0] for c in cols[9:]]
+            ac, an = 0, len(gts) * 2
+            for g in gts:
+                alleles = g.replace('|', '/').split('/')
+                for a in alleles:
+                    if a in '01':
+                        ac += int(a)
+            info_field = info if info != '.' else ''
+            if info_field:
+                info_field += ';'
+            cols[7] = info_field + f"AC={ac};AN={an}"
+            f.write('\t'.join(cols) + '\n')
+PYEOF
+    fi
     IMP bcftools index -f "$VCF"
     echo "  chr$CHR: phasing (SHAPEIT5, $THREADS threads)..."
     IMP SHAPEIT5_phase_common --input "$VCF" --map "$MAP" \
