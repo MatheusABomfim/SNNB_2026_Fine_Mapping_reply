@@ -1,0 +1,41 @@
+#!/bin/bash
+#PBS -N 04.4-hits-gwas
+#PBS -e 04.4-hits-gwas.err
+#PBS -o 04.4-hits-gwas.log
+#PBS -q workq
+#PBS -l nodes=1:ppn=4
+#PBS -l walltime=02:00:00
+
+# ─────────────────────────── CONFIG ───────────────────────────
+MICROMAMBA="/storage2/matheusbomfim/projects/micromamba/bin/micromamba"
+ENV_R="quali"           # env com R + bcftools
+
+# Paths absolutos no cluster
+GWAS_ASSOC="/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod/SRR_gwas.assoc"
+VEP_VCF="/storage4/matheusbomfim/programas/sarek/results_CA_Mama_DBGAP_New/variant_calling/haplotypecaller/joint_variant_calling/filtered/annotated/joint_germline.filtered.norm.AlphaMissense.vep.vcf.gz"
+REPO_ROOT="/storage4/matheusbomfim/SNNB_2026_Fine_Mapping_scripts"
+OUT_DIR="$REPO_ROOT/resultados/tabelas"
+
+# ───────────────────────────────────────────────────────────────
+
+cd "$PBS_O_WORKDIR" || exit 1
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "04.4_hits_gwas.pbs (Filtra hits GWAS)"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+echo "[0/1] Pre-flight..."
+[ -s "$GWAS_ASSOC" ] || { echo "ERRO: $GWAS_ASSOC ausente"; exit 1; }
+if [ -n "$VEP_VCF" ] && [ ! -s "$VEP_VCF" ]; then echo "AVISO: $VEP_VCF ausente — anotação VEP ignorada"; VEP_VCF=""; fi
+echo "  OK"
+
+echo "[1/1] Rodando 04.4_hits_gwas.R..."
+"$MICROMAMBA" run -n "$ENV_R" Rscript "$PBS_O_WORKDIR/04.4_hits_gwas.R" "$GWAS_ASSOC" "$VEP_VCF" "$OUT_DIR"
+
+echo "=========================================="
+echo "SUCCESS: $(date)"
+echo "  Hits significativos: $OUT_DIR/gwas_hits_significativos.csv"
+echo "  Hits sugestivos:     $OUT_DIR/gwas_hits_sugestivos.csv"
+echo "=========================================="
