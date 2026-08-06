@@ -91,7 +91,7 @@ for CHR in $CHRS; do
     IMP bcftools index -f "$VCF"
     echo "  chr$CHR: phasing (SHAPEIT5, $THREADS threads)..."
     IMP SHAPEIT5_phase_common --input "$VCF" --map "$MAP" \
-        --region "chr${CHR}" --output "$PHASED" --thread "$THREADS"
+        --chrom "$CHR" --output "$PHASED" --thread "$THREADS"
     IMP bcftools index -f "$PHASED"
   else
     echo "  chr$CHR: phasing já existe — pulando"
