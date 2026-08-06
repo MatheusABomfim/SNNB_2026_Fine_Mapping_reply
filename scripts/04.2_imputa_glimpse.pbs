@@ -83,11 +83,12 @@ for CHR in $CHRS; do
   if [ ! -s "$PHASED" ]; then
     [ -s "$MAP" ] || { echo "  ERRO: mapa $MAP ausente (baixe em setup_imputacao_env.sh)"; exit 1; }
     echo "  chr$CHR: PLINK → VCF..."
-    # --output-chr chrM: grava contigs como chr10 (1KG .bim não tem o prefixo),
-    # mantendo consistência com os mapas (chr10.b38.gmap.gz) e com os --region
-    # "chr${CHR}:..." usados no GLIMPSE2_chunk/split_reference.
+    # VCF contigs sem prefixo chr (ex: 10), casando com --region 10 do SHAPEIT5.
+    # bcftools +fill_tags adiciona AC/AN INFO (obrigatório pelo SHAPEIT5 docs).
     IMP plink2 --bfile "$KG_PREFIX" --chr "$CHR" \
         --recode vcf bgz --out "$WORK_ROOT/chr_vcf/kg_chr${CHR}"
+    # Add AC/AN INFO fields required by SHAPEIT5 phase_common
+    IMP bcftools +fill_tags "$VCF" -- -t AC,AN
     IMP bcftools index -f "$VCF"
     echo "  chr$CHR: phasing (SHAPEIT5, $THREADS threads)..."
     IMP SHAPEIT5_phase_common --input "$VCF" --map "$MAP" \
