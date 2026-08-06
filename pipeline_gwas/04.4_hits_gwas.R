@@ -100,7 +100,7 @@ if (!is.null(vep_vcf)) {
      csq_line <- grep("##INFO=<ID=CSQ", header_lines, value = TRUE)
      if (length(csq_line) > 0) {
        # Extract Format: Allele|Consequence|...
-       fmt_match <- regmatches(csq_line, regexpr("Format:.*", csq_line))
+        fmt_match <- regmatches(csq_line, regexec("Format: ([^\\\"]*)", csq_line))[[1]][2]
        if (length(fmt_match) > 0) {
          fields <- strsplit(sub("Format:", "", fmt_match), "\\|")[[1]]
          fields <- trimws(fields)
@@ -180,7 +180,7 @@ if (!is.null(vep_vcf)) {
   if (!is.null(vep_dt) && nrow(vep_dt) > 0) {
     # Parsear CSQ expandindo todos os campos e todos os transcripts
     parse_csq_all <- function(csq_str, fields) {
-      if (is.na(csq_str) || csq_str == "") return(NULL)
+      if (is.na(csq_str) || csq_str == "" || csq_str == ".") return(NULL)
       transcripts <- unlist(strsplit(csq_str, ",", fixed = TRUE))
       result_list <- list()
       for (i in seq_along(transcripts)) {
@@ -205,9 +205,7 @@ if (!is.null(vep_vcf)) {
         for (j in seq_along(tx_list)) {
           tx_list[[j]]$chr <- vep_dt$chr[i]
           tx_list[[j]]$pos <- vep_dt$pos[i]
-          tx_list[[j]]$id <- vep_dt$id[i]
-          tx_list[[j]]$ref <- vep_dt$ref[i]
-          tx_list[[j]]$alt <- vep_dt$alt[i]
+          # NÃO incluir id/ref/alt do VCF para evitar colunas .x/.y duplicadas
           parsed_all[[length(parsed_all) + 1]] <- tx_list[[j]]
         }
       }
@@ -219,25 +217,17 @@ if (!is.null(vep_vcf)) {
       
       # Criar coluna ID combinada para preservar unicidade por transcript
       vep_dt_full[, vep_id := sprintf("%s:%d_transcript_%d", chr, pos, transcript_index)]
+       
+      # Todos os CSQ fields + transcript_index (exclui chr, pos, vep_id)
+      vep_cols <- setdiff(names(vep_dt_full), c("chr", "pos", "vep_id"))
       
-      # Selecionar colunas: info básica + todos CSQ fields + transcript_index
-      csq_cols <- setdiff(names(vep_dt_full), c("chr", "pos"))
-      csq_cols <- csq_cols[csq_cols != "vep_id"]
-      
-      # Para merge, precisamos de chr+pos, mas manteremos todas colunas VEP
-      # Como há múltiplos transcripts por posição, vamos manter apenas o primeiro
-      # transcript por variante para o merge (conserva comportamento simplificado)
-       vep_first <- vep_dt_full[, .SD[1], by = c("chr", "pos")]
-
-       # Colunas VEP: todos os CSQ fields + transcript_index (exclui vep_id)
-       vep_cols <- setdiff(names(vep_first), c("chr", "pos", "vep_id"))
-
-       dt <- merge(dt, vep_first[, c("chr", "pos", vep_cols), with = FALSE], 
-                     by = c("chr", "pos"), all.x = TRUE)
-       sig_hits <- merge(sig_hits, vep_first[, c("chr", "pos", vep_cols), with = FALSE], 
-                          by = c("chr", "pos"), all.x = TRUE)
-       sug_hits <- merge(sug_hits, vep_first[, c("chr", "pos", vep_cols), with = FALSE], 
-                          by = c("chr", "pos"), all.x = TRUE)
+      # MERGE COM TODOS OS TRANSCRIPTS (não apenas primeiro)
+      dt <- merge(dt, vep_dt_full[, c("chr", "pos", vep_cols), with = FALSE], 
+                  by = c("chr", "pos"), all.x = TRUE, suffixes = c("", ".vep"))
+      sig_hits <- merge(sig_hits, vep_dt_full[, c("chr", "pos", vep_cols), with = FALSE], 
+                        by = c("chr", "pos"), all.x = TRUE, suffixes = c("", ".vep"))
+      sug_hits <- merge(sug_hits, vep_dt_full[, c("chr", "pos", vep_cols), with = FALSE], 
+                        by = c("chr", "pos"), all.x = TRUE, suffixes = c("", ".vep"))
       
       n_anotados <- sum(!is.na(sig_hits$Consequence) & sig_hits$Consequence != "")
       cat(sprintf("  Variantes anotadas com sucesso: %d/%d\n", n_anotados, nrow(sig_hits)))
