@@ -82,13 +82,11 @@ for CHR in $CHRS; do
   MAP="$MAPS_DIR/chr${CHR}.b38.gmap.gz"
   if [ ! -s "$PHASED" ]; then
     [ -s "$MAP" ] || { echo "  ERRO: mapa $MAP ausente (baixe em setup_imputacao_env.sh)"; exit 1; }
-    echo "  chr$CHR: PLINK → VCF..."
+    echo "  chr$CHR: PLINK → VCF (com AC/AN nativo)..."
     # VCF contigs sem prefixo chr (ex: 10), casando com --region 10 do SHAPEIT5.
-    # bcftools +fill_tags adiciona AC/AN INFO (obrigatório pelo SHAPEIT5 docs).
+    # Flag 'full' inclui AC/AN/AF INFO nativamente (exigido pelo SHAPEIT5 phase_common).
     IMP plink2 --bfile "$KG_PREFIX" --chr "$CHR" \
-        --recode vcf bgz --out "$WORK_ROOT/chr_vcf/kg_chr${CHR}"
-    # Add AC/AN INFO fields required by SHAPEIT5 phase_common (plugin name uses hyphen)
-    IMP bcftools +fill-tags "$VCF" -- -t AC,AN
+        --recode vcf bgz full --out "$WORK_ROOT/chr_vcf/kg_chr${CHR}"
     IMP bcftools index -f "$VCF"
     echo "  chr$CHR: phasing (SHAPEIT5, $THREADS threads)..."
     IMP SHAPEIT5_phase_common --input "$VCF" --map "$MAP" \
