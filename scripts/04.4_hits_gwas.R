@@ -26,11 +26,14 @@ vep_vcf   <- if (length(args) >= 2 && file.exists(args[2])) args[2] else NULL
 out_dir   <- if (length(args) >= 3) args[3] else "resultados/tabelas"
 
 # ── Helper: caminho absoluto relativo ao repo ─────────────────────────────────
-args0 <- commandArgs(trailingOnly = FALSE)
-fidx <- grep("^--file=", args0)
-script_dir <- if (length(fidx)) dirname(sub("^--file=", "", args0[fidx])) else getwd()
+script_dir <- tryCatch({
+  args0 <- commandArgs(trailingOnly = FALSE)
+  fidx  <- grep("^--file=", args0)
+  if (length(fidx)) dirname(sub("^--file=", "", args0[fidx])) else getwd()
+}, error = function(e) getwd())
+
 repo_root <- normalizePath(file.path(script_dir, ".."))
-abs_path <- function(p) if (grepl("^/", p)) p else file.path(repo_root, p)
+abs_path <- function(p) if (!is.null(p) && grepl("^/", p)) p else file.path(repo_root, p)
 
 gwas_file <- abs_path(gwas_file)
 out_dir   <- abs_path(out_dir)
