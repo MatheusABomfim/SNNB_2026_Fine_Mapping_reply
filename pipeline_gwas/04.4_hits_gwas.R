@@ -85,7 +85,7 @@ if (!is.null(vep_vcf)) {
   all_hits <- rbind(sig_hits[, .(chr, pos, id)],
                     sug_hits[, .(chr, pos, id)],
                     fill = TRUE)
-  fwrite(all_hits, regions_file, colNames = FALSE, sep = "\t")
+  fwrite(all_hits, regions_file, sep = "\t", col.names = FALSE)
 
   vep_tmp <- tempfile(fileext = ".tsv")
   bcftools_cmd <- sprintf(
