@@ -70,8 +70,8 @@ cat("[2/4] Aplicando thresholds...\n")
 dt[, is_sig := fifelse(p < 5e-8, TRUE, FALSE)]
 dt[, is_sug := fifelse(p < 1e-5 & !is_sig, TRUE, FALSE)]
 
-sig_hits <- dt[is_sig]
-sug_hits <- dt[is_sug]
+sig_hits <- dt[dt$is_sig]
+sug_hits <- dt[dt$is_sug]
 
 cat(sprintf("Hits significativos (P < 5e-8): %d\n", nrow(sig_hits)))
 cat(sprintf("Hits sugestivos     (P < 1e-5): %d\n", nrow(sug_hits)))
