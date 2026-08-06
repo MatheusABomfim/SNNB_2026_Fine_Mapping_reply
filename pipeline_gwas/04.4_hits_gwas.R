@@ -85,14 +85,46 @@ if (!is.null(vep_vcf)) {
   cat("[3/4] Anotando com VEP...\n")
   
   # Verificar se VCF e índice existem
-  vep_tbi <- paste0(vep_vcf, ".tbi")
-  if (!file.exists(vep_vcf)) {
-    cat("  ERRO: VCF VEP não encontrado:", vep_vcf, "\n")
-  } else if (!file.exists(vep_tbi)) {
-    cat("  AVISO: Índice .tbi não encontrado:", vep_tbi, "\n")
-    cat("  Criando índice...\n")
-    system2("bcftools", args = c("index", vep_vcf), stdout = FALSE, stderr = FALSE)
-  }
+   vep_tbi <- paste0(vep_vcf, ".tbi")
+   if (!file.exists(vep_vcf)) {
+     cat("  ERRO: VCF VEP não encontrado:", vep_vcf, "\n")
+   } else if (!file.exists(vep_tbi)) {
+     cat("  AVISO: Índice .tbi não encontrado:", vep_tbi, "\n")
+     cat("  Criando índice...\n")
+     system2("bcftools", args = c("index", vep_vcf), stdout = FALSE, stderr = FALSE)
+   }
+
+   # Extrair definição dos campos CSQ do header do VCF
+   csq_fields <- tryCatch({
+     header_lines <- system2("bcftools", args = c("view", "-h", vep_vcf), stdout = TRUE, stderr = TRUE)
+     csq_line <- grep("##INFO=<ID=CSQ", header_lines, value = TRUE)
+     if (length(csq_line) > 0) {
+       # Extract Format: Allele|Consequence|...
+       fmt_match <- regmatches(csq_line, regexpr("Format:.*", csq_line))
+       if (length(fmt_match) > 0) {
+         fields <- strsplit(sub("Format:", "", fmt_match), "\\|")[[1]]
+         fields <- trimws(fields)
+         cat("  Campos CSQ detectados:", length(fields), "\n")
+         cat("  ", paste(fields, collapse = ", "), "\n")
+         fields
+       } else {
+         stop("Format field not found in CSQ header")
+       }
+     } else {
+       stop("CSQ header not found in VCF")
+     }
+   }, error = function(e) {
+     cat("  AVISO: Não foi possível ler header CSQ do VCF:", conditionMessage(e), "\n")
+     cat("  Usando lista padrão de campos.\n")
+     c("Allele", "Consequence", "IMPACT", "SYMBOL", "Gene", "Feature_type",
+       "Feature", "BIOTYPE", "EXON", "INTRON", "HGVSc", "HGVSp",
+       "cDNA_position", "CDS_position", "Protein_position", "Amino_acids",
+       "Codons", "Existing_variation", "DISTANCE", "STRAND", "FLAGS",
+       "SYMBOL_SOURCE", "HGNC_ID", "am_class", "am_genome",
+       "am_pathogenicity", "am_protein_variant", "am_transcript_id",
+       "am_uniprot_id", "am_gene_name")
+   })
+
 
   # Extrair apenas regiões de interesse do VCF via bcftools
   regions_file <- tempfile(fileext = ".bed")
@@ -146,38 +178,73 @@ if (!is.null(vep_vcf)) {
   }
 
   if (!is.null(vep_dt) && nrow(vep_dt) > 0) {
-    # Extrair consequence, symbol, gene, impact do CSQ (primeiro transcript)
-    parse_csq <- function(csq_str) {
-      if (is.na(csq_str) || csq_str == "") return(list("", "", "", ""))
-      parts <- unlist(strsplit(csq_str, ",", fixed = TRUE))
-      first <- unlist(strsplit(parts[1], "|", fixed = TRUE))
-      result <- list(
-        consequence = if (length(first) >= 2) first[2] else "",
-        symbol      = if (length(first) >= 4) first[4] else "",
-        gene        = if (length(first) >= 5) first[5] else "",
-        impact      = if (length(first) >= 3) first[3] else ""
-      )
-      return(result)
+    # Parsear CSQ expandindo todos os campos e todos os transcripts
+    parse_csq_all <- function(csq_str, fields) {
+      if (is.na(csq_str) || csq_str == "") return(NULL)
+      transcripts <- unlist(strsplit(csq_str, ",", fixed = TRUE))
+      result_list <- list()
+      for (i in seq_along(transcripts)) {
+        vals <- unlist(strsplit(transcripts[i], "|", fixed = TRUE))
+        # Pad with empty strings if transcript has fewer fields than header
+        if (length(vals) < length(fields)) {
+          vals <- c(vals, rep("", length(fields) - length(vals)))
+        }
+        row <- setNames(as.list(vals), fields)
+        row$transcript_index <- i
+        result_list[[i]] <- row
+      }
+      return(result_list)
     }
 
-    # Parsear CSQ para cada linha
-    parsed_list <- lapply(vep_dt$csq, parse_csq)
-    vep_dt[, consequence := sapply(parsed_list, `[[`, "consequence")]
-    vep_dt[, symbol       := sapply(parsed_list, `[[`, "symbol")]
-    vep_dt[, gene         := sapply(parsed_list, `[[`, "gene")]
-    vep_dt[, impact       := sapply(parsed_list, `[[`, "impact")]
+    # Parsear CSQ para cada linha do VCF query
+    cat("  Parseando campos CSQ de todos os transcripts...\n")
+    parsed_all <- list()
+    for (i in 1:nrow(vep_dt)) {
+      tx_list <- parse_csq_all(vep_dt$csq[i], csq_fields)
+      if (!is.null(tx_list)) {
+        for (j in seq_along(tx_list)) {
+          tx_list[[j]]$chr <- vep_dt$chr[i]
+          tx_list[[j]]$pos <- vep_dt$pos[i]
+          tx_list[[j]]$id <- vep_dt$id[i]
+          tx_list[[j]]$ref <- vep_dt$ref[i]
+          tx_list[[j]]$alt <- vep_dt$alt[i]
+          parsed_all[[length(parsed_all) + 1]] <- tx_list[[j]]
+        }
+      }
+    }
 
-    vep_clean <- unique(vep_dt[, .(chr, pos, consequence, symbol, gene, impact)])
-    dt <- merge(dt, vep_clean, by = c("chr", "pos"), all.x = TRUE)
-    sig_hits <- merge(sig_hits, vep_clean, by = c("chr", "pos"), all.x = TRUE)
-    sug_hits <- merge(sug_hits, vep_clean, by = c("chr", "pos"), all.x = TRUE)
-    
-    n_anotados <- sum(!is.na(sig_hits$consequence) | sig_hits$consequence != "")
-    cat(sprintf("  Variantes anotadas com sucesso: %d/%d\n", 
-                sum(!is.na(vep_dt$consequence)), nrow(vep_dt)))
-    cat(sprintf("  Hits anotados no GWAS: %d/%d (sig) + %d/%d (sug)\n",
-                sum(!is.na(sig_hits$consequence) & sig_hits$consequence != ""), nrow(sig_hits),
-                sum(!is.na(sug_hits$consequence) & sug_hits$consequence != ""), nrow(sug_hits)))
+    if (length(parsed_all) > 0) {
+      vep_dt_full <- rbindlist(parsed_all, fill = TRUE)
+      cat(sprintf("  Total de anotações VEP geradas (variantes x transcripts): %d\n", nrow(vep_dt_full)))
+      
+      # Criar coluna ID combinada para preservar unicidade por transcript
+      vep_dt_full[, vep_id := sprintf("%s:%d_transcript_%d", chr, pos, transcript_index)]
+      
+      # Selecionar colunas: info básica + todos CSQ fields + transcript_index
+      csq_cols <- setdiff(names(vep_dt_full), c("chr", "pos"))
+      csq_cols <- csq_cols[csq_cols != "vep_id"]
+      
+      # Para merge, precisamos de chr+pos, mas manteremos todas colunas VEP
+      # Como há múltiplos transcripts por posição, vamos manter apenas o primeiro
+      # transcript por variante para o merge (conserva comportamento simplificado)
+       vep_first <- vep_dt_full[, .SD[1], by = c("chr", "pos")]
+
+       # Colunas VEP: todos os CSQ fields + transcript_index (exclui vep_id)
+       vep_cols <- setdiff(names(vep_first), c("chr", "pos", "vep_id"))
+
+       dt <- merge(dt, vep_first[, c("chr", "pos", vep_cols), with = FALSE], 
+                     by = c("chr", "pos"), all.x = TRUE)
+       sig_hits <- merge(sig_hits, vep_first[, c("chr", "pos", vep_cols), with = FALSE], 
+                          by = c("chr", "pos"), all.x = TRUE)
+       sug_hits <- merge(sug_hits, vep_first[, c("chr", "pos", vep_cols), with = FALSE], 
+                          by = c("chr", "pos"), all.x = TRUE)
+      
+      n_anotados <- sum(!is.na(sig_hits$Consequence) & sig_hits$Consequence != "")
+      cat(sprintf("  Variantes anotadas com sucesso: %d/%d\n", n_anotados, nrow(sig_hits)))
+      cat(sprintf("  Transcriptos únicos processados: %d\n", length(unique(vep_dt_full$vep_id))))
+    } else {
+      cat("AVISO: Nenhum transcript VEP parseado com sucesso.\n")
+    }
 
     unlink(vep_tmp); unlink(regions_file)
     if (exists("vep_tmp2")) unlink(vep_tmp2)
