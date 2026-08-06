@@ -167,10 +167,17 @@ if (!is.null(vep_vcf)) {
     vep_dt[, gene         := sapply(parsed_list, `[[`, "gene")]
     vep_dt[, impact       := sapply(parsed_list, `[[`, "impact")]
 
-    vep_clean <- unique(vep_dt[, .(chr, pos, id, consequence, symbol, gene, impact)])
-    dt <- merge(dt, vep_clean, by = c("chr", "pos", "id"), all.x = TRUE)
-    sig_hits <- merge(sig_hits, vep_clean, by = c("chr", "pos", "id"), all.x = TRUE)
-    sug_hits <- merge(sug_hits, vep_clean, by = c("chr", "pos", "id"), all.x = TRUE)
+    vep_clean <- unique(vep_dt[, .(chr, pos, consequence, symbol, gene, impact)])
+    dt <- merge(dt, vep_clean, by = c("chr", "pos"), all.x = TRUE)
+    sig_hits <- merge(sig_hits, vep_clean, by = c("chr", "pos"), all.x = TRUE)
+    sug_hits <- merge(sug_hits, vep_clean, by = c("chr", "pos"), all.x = TRUE)
+    
+    n_anotados <- sum(!is.na(sig_hits$consequence) | sig_hits$consequence != "")
+    cat(sprintf("  Variantes anotadas com sucesso: %d/%d\n", 
+                sum(!is.na(vep_dt$consequence)), nrow(vep_dt)))
+    cat(sprintf("  Hits anotados no GWAS: %d/%d (sig) + %d/%d (sug)\n",
+                sum(!is.na(sig_hits$consequence) & sig_hits$consequence != ""), nrow(sig_hits),
+                sum(!is.na(sug_hits$consequence) & sug_hits$consequence != ""), nrow(sug_hits)))
 
     unlink(vep_tmp); unlink(regions_file)
     if (exists("vep_tmp2")) unlink(vep_tmp2)
