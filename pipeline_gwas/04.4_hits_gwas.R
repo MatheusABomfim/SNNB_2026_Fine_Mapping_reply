@@ -49,6 +49,14 @@ cat("[1/4] Carregando sumstats GWAS...\n")
 dt <- fread(gwas_file)
 setnames(dt, tolower(names(dt)))  # normaliza nomes das colunas
 
+# Mapear colunas alternativas (PLINK assoc usa 'or'/'log(or)_se' em vez de 'beta'/'se')
+if (!"beta" %in% names(dt) && "or" %in% names(dt)) {
+  setnames(dt, "or", "beta")
+}
+if (!"se" %in% names(dt) && "log(or)_se" %in% names(dt)) {
+  setnames(dt, "log(or)_se", "se")
+}
+
 required_cols <- c("chr", "pos", "id", "ref", "alt", "beta", "p")
 missing_cols <- setdiff(required_cols, names(dt))
 if (length(missing_cols) > 0) {
