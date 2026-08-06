@@ -86,7 +86,7 @@ for CHR in $CHRS; do
     # --output-chr chrM: grava contigs como chr10 (1KG .bim não tem o prefixo),
     # mantendo consistência com os mapas (chr10.b38.gmap.gz) e com os --region
     # "chr${CHR}:..." usados no GLIMPSE2_chunk/split_reference.
-    IMP plink2 --bfile "$KG_PREFIX" --chr "$CHR" --output-chr chrM \
+    IMP plink2 --bfile "$KG_PREFIX" --chr "$CHR" \
         --recode vcf bgz --out "$WORK_ROOT/chr_vcf/kg_chr${CHR}"
     IMP bcftools index -f "$VCF"
     echo "  chr$CHR: phasing (SHAPEIT5, $THREADS threads)..."
@@ -101,7 +101,7 @@ done
 # ── 3. Chunk + split_reference por janela ──────────────────────
 echo "[3/5] Chunking e split_reference..."
 while read -r CHR START END; do
-  REGION="chr${CHR}:${START}-${END}"
+  REGION="${CHR}:${START}-${END}"
   CHUNKS="$WORK_ROOT/chunks/chunks_chr${CHR}_${START}_${END}.txt"
   PHASED="$WORK_ROOT/phased/kg_chr${CHR}.phased.vcf.gz"
   MAP="$MAPS_DIR/chr${CHR}.b38.gmap.gz"

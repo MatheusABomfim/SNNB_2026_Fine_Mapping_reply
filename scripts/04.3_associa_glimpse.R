@@ -99,7 +99,7 @@ for (i in seq_len(nrow(mvp))) {
   chr <- mvp$CHR_n[i]; pos <- mvp$BP_n[i]
   win_file <- lig_files[grepl(paste0("chr", chr, "_"), basename(lig_files))]
   for (f in win_file) {
-    q <- bcftools("query", "-r", sprintf("chr%s:%d", chr, pos), "-f",
+    q <- bcftools("query", "-r", sprintf("%s:%d", chr, pos), "-f",
                   "%CHROM\\t%POS\\t[%DS\\t]\\n", f)
     if (length(q) >= 1 && !grepl("^$", q[1])) {
       cols <- strsplit(q, "\t", fixed = TRUE)[[1]]
@@ -131,8 +131,8 @@ if (length(control_ids) > 0) {
                          full.names = TRUE)[1]
     if (is.na(phased)) { cat("  aviso: painel fasedo chr", chr, "não encontrado\n"); next }
     q <- tryCatch(bcftools("query", "-s", ctrl_arg, "-r",
-                           sprintf("chr%s:%d", chr, pos),
-                           "-f", "%CHROM\\t%POS\\t[%GT\\t]\\n", phased),
+                            sprintf("%s:%d", chr, pos),
+                            "-f", "%CHROM\\t%POS\\t[%GT\\t]\\n", phased),
                   error = function(e) character(0))
     if (length(q) >= 1 && !grepl("^$", q[1])) {
       cols <- strsplit(q, "\t", fixed = TRUE)[[1]]
