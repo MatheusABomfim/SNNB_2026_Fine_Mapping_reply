@@ -123,7 +123,7 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
     xlab("Cromossomo") + ylab(expression(-log[10](p))) +
     ggtitle("GWAS Manhattan — CA Mama (todos os SNPs)") +
     theme_bw() +
-    theme(panel.grid.minor = element_blank(),
+    theme(panel.grid = element_blank(),
           plot.title = element_text(hjust = 0.5, face = "bold"),
           legend.position = "top")
 
