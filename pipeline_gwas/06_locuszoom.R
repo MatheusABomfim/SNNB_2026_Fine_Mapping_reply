@@ -157,15 +157,15 @@ cat("  TSV:", lz_tsv, "\n")
 # bgzip + tabix (o tabix está no PATH do env locuszoom)
 lz_gz  <- paste0(lz_tsv, ".gz")
 status_bgzip <- system2("bgzip", args = c("-f", "-c", lz_tsv),
-                        stdout = lz_gz, stderr = TRUE)
-if (!isTRUE(status_bgzip == 0)) {
-  stop("bgzip falhou: ", paste(status_bgzip, collapse = " "))
+                        stdout = lz_gz, stderr = FALSE)
+if (!identical(as.integer(status_bgzip), 0L)) {
+  stop("bgzip falhou (exit ", status_bgzip, "). Verifique se 'bgzip' está no PATH do env locuszoom.")
 }
 status_tabix <- system2("tabix",
                         args = c("-f", "-s", "1", "-b", "2", "-e", "2", lz_gz),
-                        stderr = TRUE)
-if (!isTRUE(status_tabix == 0)) {
-  stop("tabix falhou: ", paste(status_tabix, collapse = " "))
+                        stderr = FALSE)
+if (!identical(as.integer(status_tabix), 0L)) {
+  stop("tabix falhou (exit ", status_tabix, "). Verifique se 'tabix' está no PATH do env locuszoom.")
 }
 
 file.remove(lz_tsv)   # mantém apenas o .tsv.gz + .tbi
