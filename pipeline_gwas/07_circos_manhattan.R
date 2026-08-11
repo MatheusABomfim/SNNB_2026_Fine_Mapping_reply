@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 # ──────────────────────────────────────────────────────────────────────────────
 # 07_circos_manhattan.R
-# Figura combinada estilo "fig A/B": circos plot à esquerda + Manhattan
-# completo à direita, com genes anotados (VEP, do 04.4) apenas nos hits
+# Gera circos plot e Manhattan em arquivos separados, com genes anotados
+# (VEP, do 04.4 — gene canônico quando disponível) apenas nos hits
 # genome-wide (P < 5e-8).
 #
 # Inputs:
@@ -10,13 +10,12 @@
 #   - Hits significativos : resultados/tabelas/gwas_hits_significativos.csv
 #   - Hits sugestivos     : resultados/tabelas/gwas_hits_sugestivos.csv
 # Output:
-#   - resultados/figuras/fig_circos_manhattan.pdf  (vetorial, p/ publicação)
-#   - resultados/figuras/fig_circos_manhattan.png  (300 dpi)
-#   (fallback: circos_plot.* + manhattan_completo.* separados)
+#   - resultados/figuras/circos_plot.pdf/.png            (circos, separado)
+#   - resultados/figuras/fig_circos_manhattan.pdf/.png   (só Manhattan)
 #
 # Dependências R (env locuszoom, via micromamba):
-#   micromamba install -n locuszoom -c conda-forge r-circlize r-gridgraphics
-#   # ggplot2, ggrepel, cowplot, data.table já presentes via locuszoomr
+#   micromamba install -n locuszoom -c conda-forge r-circlize
+#   # ggplot2, ggrepel, data.table já presentes via locuszoomr
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────── CONFIG ───────────────────────────
@@ -73,8 +72,19 @@ genes_from_hits <- function(hits_file) {
   if (!all(c("chr", "pos", "symbol") %in% names(h))) return(NULL)
   h[, chr_num := suppressWarnings(as.numeric(sub("^chr", "", chr)))]
   h[, pos := as.numeric(pos)]
-  h[!is.na(chr_num) & !is.na(symbol) & symbol != "" & symbol != ".",
-    .(genes = paste(unique(symbol), collapse = "; ")), by = .(chr_num, pos)]
+  h <- h[!is.na(chr_num) & !is.na(symbol) & symbol != "" & symbol != "."]
+  # gene canônico: prioriza transcritos CANONICAL=YES do VEP
+  if ("canonical" %in% names(h)) {
+    canon <- h[tolower(trimws(canonical)) == "yes"]
+    if (nrow(canon) > 0) {
+      h <- canon
+    } else {
+      cat("  AVISO: coluna 'canonical' sem YES — usando todos os SYMBOL.\n")
+    }
+  } else {
+    cat("  AVISO: sem coluna 'canonical' no hits CSV — usando todos os SYMBOL.\n")
+  }
+  h[, .(genes = paste(unique(symbol), collapse = "; ")), by = .(chr_num, pos)]
 }
 sig_genes <- genes_from_hits(HITS_SIG)
 if (!is.null(sig_genes)) {
@@ -140,10 +150,9 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
   p_manh <- NULL
 }
 
-# ── 5. Circos à esquerda (circlize) ────────────────────────────────────────────
-cat("[5] Circos plot (esquerda)...\n")
+# ── 5. Circos (separado) + Manhattan (separado) ────────────────────────────────
+cat("[5] Circos plot...\n")
 have_circos <- requireNamespace("circlize", quietly = TRUE)
-have_png    <- requireNamespace("png", quietly = TRUE)
 
 draw_circos <- function(manh, chr_max, sig_hits) {
   suppressPackageStartupMessages(library(circlize))
@@ -202,8 +211,7 @@ draw_circos <- function(manh, chr_max, sig_hits) {
 sig_hits <- manh[p < PCUTOFF & !is.na(genes)]
 
 if (have_circos) {
-  # Renderiza o circos em arquivos próprios (PDF vetorial + PNG alta resolução).
-  # Sempre abre device antes de desenhar (evita Rplots.pdf).
+  # Circos sempre renderizado com device explícito (evita Rplots.pdf).
   circos_ok <- tryCatch({
     pdf(file.path(OUT_FIGURAS, "circos_plot.pdf"), width = 7, height = 7)
     draw_circos(manh, chr_max, sig_hits)
@@ -222,54 +230,19 @@ if (have_circos) {
     cat("  AVISO: circos falhou (", conditionMessage(e), ").\n", sep = "")
     FALSE
   })
-
-  if (isTRUE(circos_ok) && !is.null(p_manh) && have_png) {
-    # Figura combinada: circos (raster) à esquerda + Manhattan (vetorial) à direita
-    combined_ok <- tryCatch({
-      library(ggplot2)
-      img <- png::readPNG(file.path(OUT_FIGURAS, "circos_plot.png"))
-      p_circos <- ggplot() +
-        annotation_custom(grid::rasterGrob(img, interpolate = TRUE),
-                          xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
-        coord_fixed() + theme_void()
-      library(cowplot)
-      p_comb <- plot_grid(p_circos, p_manh, ncol = 2,
-                          rel_widths = c(0.38, 0.62))
-      out_pdf <- file.path(OUT_FIGURAS, "fig_circos_manhattan.pdf")
-      out_png <- file.path(OUT_FIGURAS, "fig_circos_manhattan.png")
-      ggsave(out_pdf, p_comb, width = 14, height = 7)
-      ggsave(out_png, p_comb, width = 14, height = 7, dpi = 300)
-      cat("  fig_circos_manhattan.pdf + .png salvos.\n")
-      TRUE
-    }, error = function(e) {
-      if (dev.cur() > 1) dev.off()
-      cat("  AVISO: falha na combinação (", conditionMessage(e),
-          ") — salvando painéis separados.\n", sep = "")
-      FALSE
-    })
-        } else {
-            combined_ok <- FALSE
-            if (is.null(p_manh)) {
-                cat("  AVISO: ggplot2 indisponível — sem figura combinada (apenas circos).\n")
-            } else if (!have_png) {
-                cat("  AVISO: pacote 'png' ausente — combinada não gerada (use: micromamba install -n locuszoom r-png).\n")
-            }
-        }
-
-  if (!isTRUE(combined_ok) && !is.null(p_manh)) {
-    ggsave(file.path(OUT_FIGURAS, "manhattan_completo.png"), p_manh,
-           width = 10, height = 6, dpi = 300)
-    ggsave(file.path(OUT_FIGURAS, "manhattan_completo.pdf"), p_manh,
-           width = 10, height = 6)
-    cat("  manhattan_completo.png/.pdf salvos.\n")
-  }
 } else {
-  cat("  AVISO: circlize indisponível — apenas Manhattan.\n")
-  if (!is.null(p_manh)) {
-    ggsave(file.path(OUT_FIGURAS, "manhattan_completo.png"), p_manh,
-           width = 10, height = 6, dpi = 300)
-    cat("  manhattan_completo.png salvo.\n")
-  }
+  cat("  AVISO: circlize indisponível — circos não gerado.\n")
+}
+
+# Manhattan sozinho (fig_circos_manhattan.*)
+if (!is.null(p_manh)) {
+  ggsave(file.path(OUT_FIGURAS, "fig_circos_manhattan.pdf"), p_manh,
+         width = 10, height = 6)
+  ggsave(file.path(OUT_FIGURAS, "fig_circos_manhattan.png"), p_manh,
+         width = 10, height = 6, dpi = 300)
+  cat("  fig_circos_manhattan.pdf + .png (Manhattan) salvos.\n")
+} else {
+  cat("  AVISO: sem Manhattan (ggplot2 indisponível).\n")
 }
 
 # limpeza: nunca deixar Rplots.pdf (default device) no working dir

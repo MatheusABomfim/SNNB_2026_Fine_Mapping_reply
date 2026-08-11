@@ -243,8 +243,19 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
     if (!all(c("chr", "pos", "symbol") %in% names(h))) return(NULL)
     h[, chr_num := suppressWarnings(as.numeric(sub("^chr", "", chr)))]
     h[, pos := as.numeric(pos)]
-    h[!is.na(chr_num) & !is.na(symbol) & symbol != "" & symbol != ".",
-      .(genes = paste(unique(symbol), collapse = "; ")), by = .(chr_num, pos)]
+    h <- h[!is.na(chr_num) & !is.na(symbol) & symbol != "" & symbol != "."]
+    # gene canônico: prioriza transcritos CANONICAL=YES do VEP
+    if ("canonical" %in% names(h)) {
+      canon <- h[tolower(trimws(canonical)) == "yes"]
+      if (nrow(canon) > 0) {
+        h <- canon
+      } else {
+        cat("  AVISO: coluna 'canonical' sem YES — usando todos os SYMBOL.\n")
+      }
+    } else {
+      cat("  AVISO: sem coluna 'canonical' no hits CSV — usando todos os SYMBOL.\n")
+    }
+    h[, .(genes = paste(unique(symbol), collapse = "; ")), by = .(chr_num, pos)]
   }
   sig_genes <- genes_from_hits(HITS_SIG)
   sug_genes <- genes_from_hits(HITS_SUG)
