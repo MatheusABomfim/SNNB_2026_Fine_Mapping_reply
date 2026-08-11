@@ -144,6 +144,7 @@ lz <- gwas_raw[, lz_cols, with = FALSE]
 # Normalizar chr para números (tabix requer chr consistente, ex: "1" não "chr1")
 lz[, chr_num := suppressWarnings(as.numeric(sub("^chr", "", chr)))]
 lz[is.na(chr_num), chr_num := 23]          # X → 23 (aproximação para ordenação)
+lz[, chr := as.character(chr_num)]         # gravar chr numérico no arquivo
 setkey(lz, chr_num, pos)
 lz[, chr_num := NULL]
 
@@ -151,7 +152,8 @@ lz[, chr_num := NULL]
 setnames(lz, c("chrom", "pos", "ref", "alt", "id", "a1_freq", "beta", "se", "p", "logp")[seq_along(lz_cols)])
 
 lz_tsv <- file.path(OUT_TABELAS, paste0(LZ_BASE, ".tsv"))
-fwrite(lz, lz_tsv, sep = "\t", col.names = TRUE, quote = FALSE)
+writeLines(paste0("#", paste(names(lz), collapse = "\t")), lz_tsv)
+fwrite(lz, lz_tsv, sep = "\t", col.names = FALSE, append = TRUE, quote = FALSE)
 cat("  TSV:", lz_tsv, "\n")
 
 # bgzip + tabix (o tabix está no PATH do env locuszoom)
