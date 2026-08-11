@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -N 07-circos-manh
+#PBS -e 07-circos-manhattan.err
+#PBS -o 07-circos-manhattan.log
+#PBS -q workq
+#PBS -l nodes=1:ppn=2
+#PBS -l walltime=02:00:00
+
+# ─────────────────────────── CONFIG ───────────────────────────
+MICROMAMBA="/storage2/matheusbomfim/projects/micromamba/bin/micromamba"
+ENV_R="locuszoom"       # env: locuszoomr + circlize + gridGraphics + ggplot2
+# ───────────────────────────────────────────────────────────────
+
+cd "$PBS_O_WORKDIR" || exit 1
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "07_circos_manhattan.pbs (Figura combinada: circos + Manhattan)"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+"$MICROMAMBA" run -n "$ENV_R" Rscript 07_circos_manhattan.R
+
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: 07_circos_manhattan.R completed at $(date)"
+else
+    echo "FAILURE: 07_circos_manhattan.R exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="

@@ -1,0 +1,272 @@
+#!/usr/bin/env Rscript
+# ──────────────────────────────────────────────────────────────────────────────
+# 07_circos_manhattan.R
+# Figura combinada estilo "fig A/B": circos plot à esquerda + Manhattan
+# completo à direita, com genes anotados (VEP, do 04.4) apenas nos hits
+# genome-wide (P < 5e-8).
+#
+# Inputs:
+#   - GWAS assoc completo : /storage4/.../gwas/gwas_prod/SRR_gwas.assoc
+#   - Hits significativos : resultados/tabelas/gwas_hits_significativos.csv
+#   - Hits sugestivos     : resultados/tabelas/gwas_hits_sugestivos.csv
+# Output:
+#   - resultados/figuras/fig_circos_manhattan.pdf  (vetorial, p/ publicação)
+#   - resultados/figuras/fig_circos_manhattan.png  (300 dpi)
+#   (fallback: circos_plot.* + manhattan_completo.* separados)
+#
+# Dependências R (env locuszoom, via micromamba):
+#   micromamba install -n locuszoom -c conda-forge r-circlize r-gridgraphics
+#   # ggplot2, ggrepel, cowplot, data.table já presentes via locuszoomr
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────── CONFIG ───────────────────────────
+GWAS_ASSOC  <- "/storage4/matheusbomfim/SNNB_2026_Fine_mapping/gwas/gwas_prod/SRR_gwas.assoc"
+HITS_SIG    <- "resultados/tabelas/gwas_hits_significativos.csv"
+HITS_SUG    <- "resultados/tabelas/gwas_hits_sugestivos.csv"
+OUT_FIGURAS <- "resultados/figuras"
+
+PCUTOFF     <- 5e-8                    # limiar genome-wide
+SUG_CUTOFF  <- 1e-5                    # limiar sugestivo
+# ───────────────────────────────────────────────────────────────
+
+# Caminhos relativos à raiz do repo (o pai do dir deste script).
+abs_path <- function(p) if (grepl("^/", p)) p else file.path(REPO_ROOT, p)
+args0 <- commandArgs(trailingOnly = FALSE)
+fidx <- grep("^--file=", args0)
+SCRIPT_DIR <- if (length(fidx)) dirname(sub("^--file=", "", args0[fidx])) else getwd()
+REPO_ROOT  <- normalizePath(file.path(SCRIPT_DIR, ".."))
+HITS_SIG    <- abs_path(HITS_SIG)
+HITS_SUG    <- abs_path(HITS_SUG)
+OUT_FIGURAS <- abs_path(OUT_FIGURAS)
+
+suppressPackageStartupMessages(library(data.table))
+
+if (!dir.exists(OUT_FIGURAS)) dir.create(OUT_FIGURAS, recursive = TRUE)
+cat("== 07_circos_manhattan.R ==\n")
+cat("GWAS assoc :", GWAS_ASSOC, "\n")
+cat("Thresholds : P <", PCUTOFF, "(genome-wide) | P <", SUG_CUTOFF, "(sugestivo)\n")
+cat("Output     :", OUT_FIGURAS, "\n\n")
+
+# ── 1. Carregar sumstats GWAS ──────────────────────────────────────────────────
+if (!file.exists(GWAS_ASSOC)) stop("GWAS assoc não encontrado: ", GWAS_ASSOC)
+gwas_raw <- fread(GWAS_ASSOC)
+setnames(gwas_raw, tolower(names(gwas_raw)))
+required <- c("chr", "pos", "id", "p")
+missing  <- setdiff(required, names(gwas_raw))
+if (length(missing) > 0) stop("Colunas obrigatórias ausentes no assoc: ",
+                              paste(missing, collapse = ", "))
+gwas_raw[, p := suppressWarnings(as.numeric(p))]
+gwas_raw <- gwas_raw[!is.na(p) & is.finite(p)]
+cat(sprintf("SNPs no assoc: %d\n", nrow(gwas_raw)))
+
+manh <- gwas_raw[, .(chr, pos, id, p)]
+manh[, chr_num := suppressWarnings(as.numeric(sub("^chr", "", chr)))]
+manh[, pos := as.numeric(pos)]
+manh[, logp := -log10(p)]
+manh <- manh[!is.na(chr_num) & !is.na(pos) & is.finite(logp)]
+
+# ── 2. Genes dos hits (VEP) por (chr,pos) ──────────────────────────────────────
+genes_from_hits <- function(hits_file) {
+  if (!file.exists(hits_file)) return(NULL)
+  h <- fread(hits_file)
+  setnames(h, tolower(names(h)))
+  if (!all(c("chr", "pos", "symbol") %in% names(h))) return(NULL)
+  h[, chr_num := suppressWarnings(as.numeric(sub("^chr", "", chr)))]
+  h[, pos := as.numeric(pos)]
+  h[!is.na(chr_num) & !is.na(symbol) & symbol != "" & symbol != ".",
+    .(genes = paste(unique(symbol), collapse = "; ")), by = .(chr_num, pos)]
+}
+sig_genes <- genes_from_hits(HITS_SIG)
+if (!is.null(sig_genes)) {
+  manh <- merge(manh, sig_genes, by = c("chr_num", "pos"), all.x = TRUE)
+} else {
+  manh[, genes := NA_character_]
+  cat("AVISO: sem genes de hits significativos (HITS_SIG ausente/vazio).\n")
+}
+
+# ── 3. Coordenadas genômicas acumuladas (chr 1-22) ─────────────────────────────
+chr_max <- manh[, .(maxp = max(pos)), by = chr_num][order(chr_num)]
+gap <- round(0.02 * max(chr_max$maxp))
+chr_max[, off := c(0, cumsum(maxp + gap)[- .N])]
+manh <- merge(manh, chr_max[, .(chr_num, off)], by = "chr_num")
+manh[, x := off + pos]
+chr_center <- chr_max[, .(x = off + maxp / 2)]
+
+# ── 4. Manhattan completo à direita (ggplot2) ──────────────────────────────────
+cat("[4] Manhattan completo (direita)...\n")
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  library(ggplot2)
+  manh[, level := fifelse(p < PCUTOFF, "significativo",
+                   fifelse(p < SUG_CUTOFF, "sugestivo",
+                     fifelse(chr_num %% 2 == 1, "chr_impar", "chr_par")))]
+
+  p_manh <- ggplot(manh, aes(x = x, y = logp, colour = level)) +
+    geom_point(size = 1.3, alpha = 0.8) +
+    scale_colour_manual(values = c(
+        "significativo" = "#E31A1C",
+        "sugestivo"     = "#FF7F00",
+        "chr_impar"     = "#4477AA",
+        "chr_par"       = "#BBCCEE"),
+      breaks = c("significativo", "sugestivo"), name = NULL) +
+    scale_x_continuous(breaks = chr_center$x, labels = chr_max$chr_num,
+                       expand = expansion(mult = 0.01)) +
+    geom_hline(yintercept = -log10(PCUTOFF), linetype = "dashed",
+               colour = "#E31A1C", linewidth = 0.5) +
+    geom_hline(yintercept = -log10(SUG_CUTOFF), linetype = "dashed",
+               colour = "#FF7F00", linewidth = 0.5) +
+    annotate("text", x = chr_center$x[1], y = -log10(PCUTOFF),
+             label = "P = 5e-8", vjust = -0.5, hjust = 0, size = 3,
+             colour = "#E31A1C") +
+    annotate("text", x = chr_center$x[1], y = -log10(SUG_CUTOFF),
+             label = "P = 1e-5", vjust = -0.5, hjust = 0, size = 3,
+             colour = "#FF7F00") +
+    xlab("Cromossomo") + ylab(expression(-log[10](p))) +
+    ggtitle("GWAS Manhattan — CA Mama (todos os SNPs)") +
+    theme_bw() +
+    theme(panel.grid.minor = element_blank(),
+          plot.title = element_text(hjust = 0.5, face = "bold"),
+          legend.position = "top")
+
+  lbl <- manh[p < PCUTOFF & !is.na(genes)]
+  if (nrow(lbl) > 0 && requireNamespace("ggrepel", quietly = TRUE)) {
+    p_manh <- p_manh +
+      ggrepel::geom_text_repel(data = lbl, aes(label = genes), size = 3,
+                               max.overlaps = 30, min.segment.length = 0,
+                               segment.colour = "grey40", seed = 42,
+                               colour = "black")
+  }
+} else {
+  cat("  AVISO: ggplot2 indisponível — sem painel Manhattan.\n")
+  p_manh <- NULL
+}
+
+# ── 5. Circos à esquerda (circlize) ────────────────────────────────────────────
+cat("[5] Circos plot (esquerda)...\n")
+have_circos <- requireNamespace("circlize", quietly = TRUE)
+have_gridg  <- requireNamespace("gridGraphics", quietly = TRUE)
+
+draw_circos <- function(manh, chr_max, sig_hits) {
+  library(circlize)
+  chrlens <- chr_max[, .(chr_num, maxp)]
+  maxlogp <- max(manh$logp)
+
+  circos.par(gap.degree = 1, start.degree = 90, clock.wise = FALSE,
+             track.margin = c(0.01, 0.01), cell.padding = c(0.02, 1, 0.02, 1))
+  circos.initialize(factors = chrlens$chr_num,
+                    xlim = cbind(rep(1, nrow(chrlens)), chrlens$maxp))
+
+  # Track 1: ideograma com rótulos
+  circos.track(ylim = c(0, 1), track.height = 0.08, bg.border = NA,
+               panel.fun = function(x, y) {
+                 i <- get.cell.meta.data("sector.numeric.index")
+                 col <- if (i %% 2 == 1) "#2C3E50" else "#95A5A6"
+                 circos.rect(CELL_META$xleft, CELL_META$ybottom,
+                             CELL_META$xright, CELL_META$ytop,
+                             col = col, border = NA)
+                 circos.text(CELL_META$xcenter, CELL_META$ymidpoint,
+                             get.cell.meta.data("sector.index"),
+                             cex = 0.6, font = 2, col = "white",
+                             facing = "downward")
+               })
+
+  # Track 2: -log10(p) de todos os SNPs
+  circos.track(ylim = c(0, maxlogp * 1.05), track.height = 0.45,
+               bg.border = NA, bg.col = "grey97",
+               panel.fun = function(x, y) {
+                 sid <- as.numeric(get.cell.meta.data("sector.index"))
+                 df <- manh[chr_num == sid][order(pos)]
+                 if (nrow(df) == 0) return(NULL)
+                 col <- fifelse(df$p < PCUTOFF, "#E31A1C",
+                         fifelse(df$p < SUG_CUTOFF, "#FF7F00",
+                           fifelse(df$chr_num %% 2 == 1, "#4477AA", "#BBCCEE")))
+                 circos.points(df$pos, df$logp, pch = 16, cex = 0.3, col = col)
+                 circos.segments(CELL_META$xleft, -log10(PCUTOFF),
+                                 CELL_META$xright, -log10(PCUTOFF),
+                                 col = "#E31A1C", lty = 2, lwd = 0.6)
+               })
+
+  # Track 3: hits genome-wide + genes
+  circos.track(ylim = c(0, 1), track.height = 0.12, bg.border = NA,
+               panel.fun = function(x, y) {
+                 sid <- as.numeric(get.cell.meta.data("sector.index"))
+                 df <- sig_hits[chr_num == sid]
+                 if (nrow(df) == 0) return(NULL)
+                 circos.points(df$pos, rep(0.4, nrow(df)), pch = 17,
+                               cex = 0.9, col = "#E31A1C")
+                 circos.text(df$pos, rep(1.05, nrow(df)), df$genes,
+                             cex = 0.55, facing = "clockwise",
+                             adj = c(0, 0), col = "#8B0000")
+               })
+}
+
+sig_hits <- manh[p < PCUTOFF & !is.na(genes)]
+
+if (have_circos) {
+  if (have_gridg) {
+    combined_ok <- tryCatch({
+      tmp_pdf <- tempfile(fileext = ".pdf")
+      pdf(tmp_pdf, width = 7, height = 7)
+      draw_circos(manh, chr_max, sig_hits)
+      gridGraphics::grid.echo()
+      g_circos <- grid::grid.grab()
+      dev.off()
+      unlink(tmp_pdf)
+      circos.clear()
+
+      library(cowplot)
+      left_panel <- ggdraw() + draw_grob(g_circos)
+      if (is.null(p_manh)) {
+        cat("  AVISO: sem Manhattan (ggplot2 ausente) — salvando só circos.\n")
+        ggsave(file.path(OUT_FIGURAS, "circos_plot.pdf"), left_panel,
+               width = 7, height = 7)
+        ggsave(file.path(OUT_FIGURAS, "circos_plot.png"), left_panel,
+               width = 7, height = 7, dpi = 300)
+        cat("  circos_plot.pdf/.png salvos.\n")
+        TRUE
+      } else {
+        p_comb <- plot_grid(left_panel, p_manh, ncol = 2,
+                            rel_widths = c(0.38, 0.62))
+        out_pdf <- file.path(OUT_FIGURAS, "fig_circos_manhattan.pdf")
+        out_png <- file.path(OUT_FIGURAS, "fig_circos_manhattan.png")
+        ggsave(out_pdf, p_comb, width = 14, height = 7)
+        ggsave(out_png, p_comb, width = 14, height = 7, dpi = 300)
+        cat("  fig_circos_manhattan.pdf + .png salvos.\n")
+        TRUE
+      }
+    }, error = function(e) {
+      if (dev.cur() > 1) dev.off()
+      try(circos.clear(), silent = TRUE)
+      cat("  AVISO: falha na combinação (", conditionMessage(e),
+          ") — salvando painéis separados.\n", sep = "")
+      FALSE
+    })
+  } else {
+    cat("  AVISO: gridGraphics ausente — salvando painéis separados.\n")
+    combined_ok <- FALSE
+  }
+
+  if (!isTRUE(combined_ok)) {
+    # fallback: painéis separados
+    pdf(file.path(OUT_FIGURAS, "circos_plot.pdf"), width = 7, height = 7)
+    draw_circos(manh, chr_max, sig_hits)
+    dev.off()
+    circos.clear()
+    cat("  circos_plot.pdf salvo.\n")
+    if (!is.null(p_manh)) {
+      ggsave(file.path(OUT_FIGURAS, "manhattan_completo.png"), p_manh,
+             width = 10, height = 6, dpi = 300)
+      ggsave(file.path(OUT_FIGURAS, "manhattan_completo.pdf"), p_manh,
+             width = 10, height = 6)
+      cat("  manhattan_completo.png/.pdf salvos.\n")
+    }
+  }
+} else {
+  cat("  AVISO: circlize indisponível — apenas Manhattan.\n")
+  if (!is.null(p_manh)) {
+    ggsave(file.path(OUT_FIGURAS, "manhattan_completo.png"), p_manh,
+           width = 10, height = 6, dpi = 300)
+    cat("  manhattan_completo.png salvo.\n")
+  }
+}
+
+cat("\nDone.\n")
