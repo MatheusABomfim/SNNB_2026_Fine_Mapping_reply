@@ -2,8 +2,9 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # 07_circos_manhattan.R
 # Gera circos plot e Manhattan em arquivos separados, com genes anotados
-# (VEP, do 04.4 — gene canônico quando disponível) apenas nos hits
-# genome-wide (P < 5e-8).
+# (VEP, do 04.4) apenas nos hits genome-wide (P < 5e-8). O gene por locus é o
+# "gene canônico" derivado do próprio VEP: transcrito de maior IMPACT
+# (HIGH > MODERATE > LOW > MODIFIER), desempatado pelo transcript_index.
 #
 # Inputs:
 #   - GWAS assoc completo : /storage4/.../gwas/gwas_prod/SRR_gwas.assoc
@@ -26,7 +27,6 @@ OUT_FIGURAS <- "resultados/figuras"
 
 PCUTOFF     <- 5e-8                    # limiar genome-wide
 SUG_CUTOFF  <- 1e-5                    # limiar sugestivo
-ENS_DB      <- "EnsDb.Hsapiens.v86"   # GRCh38 (hg38); via bioconda
 # ───────────────────────────────────────────────────────────────
 
 # Caminhos relativos à raiz do repo (o pai do dir deste script).
@@ -47,49 +47,6 @@ cat("GWAS assoc :", GWAS_ASSOC, "\n")
 cat("Thresholds : P <", PCUTOFF, "(genome-wide) | P <", SUG_CUTOFF, "(sugestivo)\n")
 cat("Output     :", OUT_FIGURAS, "\n\n")
 
-# ── 0. Mapa de genes canônicos (EnsDb v86) ─────────────────────────────────────
-# Gene IDs do Ensembl (ENSG...) são estáveis entre releases → join pelo 'gene'
-# do VEP. O transcrito canônico (Ensembl) por gene é obtido de EnsDb.Hsapiens.v86,
-# já que o CSQ do VEP/AlphaMissense do Sarek não grava o campo CANONICAL.
-build_canon_ranges <- function(ens_db_pkg) {
-  if (!requireNamespace("ensembldb", quietly = TRUE) ||
-      !requireNamespace(ens_db_pkg, quietly = TRUE)) {
-    cat("  AVISO: ensembldb/", ens_db_pkg, " indisponível — sem gene canônico.\n", sep = "")
-    return(NULL)
-  }
-  edb <- get(ens_db_pkg, envir = asNamespace(ens_db_pkg))
-  canon <- tryCatch(as.data.frame(ensembldb::canonicalTranscript(edb)),
-                    error = function(e) NULL)
-  if (is.null(canon) || nrow(canon) == 0 ||
-      !all(c("tx_id", "gene_id") %in% names(canon))) {
-    cat("  AVISO: canonicalTranscript() falhou — sem gene canônico.\n")
-    return(NULL)
-  }
-  tx <- tryCatch(ensembldb::transcripts(
-          edb,
-          filter = AnnotationFilter::GeneIdFilter(unique(as.character(canon$gene_id))),
-          columns = c("tx_id", "gene_id", "seq_name", "tx_start", "tx_end")),
-        error = function(e) NULL)
-  if (is.null(tx) || length(tx) == 0) {
-    cat("  AVISO: ranges dos transcritos indisponíveis — sem gene canônico.\n")
-    return(NULL)
-  }
-  tx_dt <- data.table(
-    tx_id   = as.character(tx$tx_id),
-    gene_id = as.character(tx$gene_id),
-    chr_num = suppressWarnings(as.numeric(sub("^chr", "", as.character(tx$seq_name)))),
-    start   = as.numeric(tx$tx_start),
-    end     = as.numeric(tx$tx_end))
-  canon <- data.table(tx_id = as.character(canon$tx_id),
-                      gene_id = as.character(canon$gene_id))
-  cr <- tx_dt[canon, on = .(tx_id, gene_id), nomatch = NULL]
-  cr <- cr[!is.na(chr_num)]
-  cat(sprintf("  Transcritos canônicos (Ensembl v86): %d (genes: %d)\n",
-              nrow(cr), length(unique(cr$gene_id))))
-  cr[, .(gene_id, chr_num, start, end)]
-}
-canon_ranges <- build_canon_ranges(ENS_DB)
-
 # ── 1. Carregar sumstats GWAS ──────────────────────────────────────────────────
 if (!file.exists(GWAS_ASSOC)) stop("GWAS assoc não encontrado: ", GWAS_ASSOC)
 gwas_raw <- fread(GWAS_ASSOC)
@@ -109,6 +66,9 @@ manh[, logp := -log10(p)]
 manh <- manh[!is.na(chr_num) & !is.na(pos) & is.finite(logp)]
 
 # ── 2. Genes dos hits (VEP) por (chr,pos) ──────────────────────────────────────
+# "Gene canônico" derivado só do VEP (CSV do 04.4): por locus, o gene do
+# transcrito de maior IMPACT (HIGH > MODERATE > LOW > MODIFIER), desempate pelo
+# transcript_index menor (VEP lista a consequência mais grave primeiro).
 genes_from_hits <- function(hits_file) {
   if (!file.exists(hits_file)) return(NULL)
   h <- fread(hits_file)
@@ -124,51 +84,36 @@ genes_from_hits <- function(hits_file) {
     if (nrow(canon) > 0) {
       cat("  gene canônico: coluna 'canonical' do CSV usada.\n")
       h <- canon
-    } else {
-      cat("  AVISO: coluna 'canonical' sem YES — tentando EnsDb por overlap.\n")
     }
   }
+
+  # rank do IMPACT (menor = mais grave)
+  if ("impact" %in% names(h)) {
+    h[, impact_rank := fifelse(tolower(trimws(impact)) == "high", 1,
+                       fifelse(tolower(trimws(impact)) == "moderate", 2,
+                       fifelse(tolower(trimws(impact)) == "low", 3,
+                       fifelse(tolower(trimws(impact)) == "modifier", 4, 99))))]
+  } else {
+    h[, impact_rank := 99L]
+    cat("  AVISO: sem coluna 'impact' — usando só transcript_index.\n")
+  }
+
+  # desempate por transcript_index (ordem do VEP); faltando, mantém a ordem
+  if (!"transcript_index" %in% names(h)) {
+    h[, transcript_index := seq_len(.N), by = .(chr_num, pos)]
+    cat("  AVISO: sem coluna 'transcript_index' — usando a ordem das linhas.\n")
+  }
+  h[, transcript_index := as.numeric(transcript_index)]
 
   n_loci <- uniqueN(h[, .(chr_num, pos)])
-
-  # gene canônico por overlap: mantém o gene cujo transcrito canônico (EnsDb v86)
-  # cobre a posição da variante. Loci sem cobertura canônica → fallback (todos).
-  if (!is.null(canon_ranges) && "gene" %in% names(h)) {
-    ug <- unique(h[!is.na(gene) & gene != "" & gene != ".", .(chr_num, pos, gene)])
-    if (nrow(ug) > 0) {
-      mg <- merge(ug, canon_ranges, by.x = "gene", by.y = "gene_id",
-                  allow.cartesian = TRUE, sort = FALSE)
-      mg <- mg[chr_num.x == chr_num.y & start <= pos & pos <= end]
-      if (nrow(mg) > 0) {
-        canon_genes <- unique(mg[, .(chr_num = chr_num.x, pos, gene)])
-        syms <- unique(merge(canon_genes,
-                             unique(h[, .(chr_num, pos, gene, symbol)]),
-                             by = c("chr_num", "pos", "gene")))
-        lab <- syms[, .(genes = paste(unique(symbol), collapse = "; ")),
-                    by = .(chr_num, pos)]
-        cat(sprintf("  gene canônico por overlap (EnsDb v86): %d/%d loci com canônico.\n",
-                    nrow(lab), n_loci))
-        if (nrow(lab) < n_loci) {
-          cat(sprintf("  AVISO: %d loci sem transcrito canônico cobrindo a posição (fallback).\n",
-                      n_loci - nrow(lab)))
-        }
-        all_lab <- h[, .(genes_all = paste(unique(symbol), collapse = "; ")),
-                     by = .(chr_num, pos)]
-        out <- merge(all_lab, lab, by = c("chr_num", "pos"), all.x = TRUE)
-        out[, genes := ifelse(is.na(genes), genes_all, genes)]
-        return(out[, .(chr_num, pos, genes)])
-      }
-    }
-  }
-
-  if (is.null(canon_ranges)) {
-    cat("  AVISO: sem mapa canônico — usando todos os SYMBOL.\n")
-  } else if (!"gene" %in% names(h)) {
-    cat("  AVISO: sem coluna 'gene' no hits CSV — usando todos os SYMBOL.\n")
-  } else {
-    cat("  AVISO: nenhum transcrito canônico cobrindo os loci — usando todos os SYMBOL.\n")
-  }
-  h[, .(genes = paste(unique(symbol), collapse = "; ")), by = .(chr_num, pos)]
+  setorder(h, chr_num, pos, impact_rank, transcript_index)
+  lab <- h[, .(genes = paste(unique(symbol), collapse = "; ")),
+           by = .(chr_num, pos)]
+  n1 <- sum(grepl(";", lab$genes, fixed = TRUE))
+  cat(sprintf("  gene canônico por IMPACT (HIGH>MODERATE>LOW>MODIFIER): %d loci; %d com 1 gene.\n",
+              nrow(lab), nrow(lab) - n1))
+  if (n1 > 0) cat(sprintf("  AVISO: %d loci com >1 gene no topo (mesmo IMPACT/transcript_index).\n", n1))
+  lab
 }
 sig_genes <- genes_from_hits(HITS_SIG)
 if (!is.null(sig_genes)) {
