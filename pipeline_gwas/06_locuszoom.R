@@ -157,18 +157,30 @@ fwrite(lz, lz_tsv, sep = "\t", col.names = FALSE, append = TRUE, quote = FALSE)
 cat("  TSV:", lz_tsv, "\n")
 
 # bgzip + tabix (o tabix está no PATH do env locuszoom)
+tools_ok <- Sys.which(c("bgzip", "tabix"))
+for (t in names(tools_ok)) {
+  if (!nzchar(tools_ok[[t]])) {
+    cat(sprintf("  AVISO: '%s' não encontrado no PATH do env locuszoom (Sys.which vazio).\n", t))
+  } else {
+    cat(sprintf("  %-6s -> %s\n", t, tools_ok[[t]]))
+  }
+}
 lz_gz  <- paste0(lz_tsv, ".gz")
+err_tmp <- tempfile(fileext = ".err")
 status_bgzip <- system2("bgzip", args = c("-f", "-c", lz_tsv),
-                        stdout = lz_gz, stderr = FALSE)
+                        stdout = lz_gz, stderr = err_tmp)
 if (!identical(as.integer(status_bgzip), 0L)) {
-  stop("bgzip falhou (exit ", status_bgzip, "). Verifique se 'bgzip' está no PATH do env locuszoom.")
+  msg <- if (file.exists(err_tmp)) paste(readLines(err_tmp, warn = FALSE), collapse = "\n") else ""
+  stop("bgzip falhou (exit ", status_bgzip, "):\n", msg)
 }
 status_tabix <- system2("tabix",
                         args = c("-f", "-s", "1", "-b", "2", "-e", "2", lz_gz),
-                        stderr = FALSE)
+                        stderr = err_tmp)
 if (!identical(as.integer(status_tabix), 0L)) {
-  stop("tabix falhou (exit ", status_tabix, "). Verifique se 'tabix' está no PATH do env locuszoom.")
+  msg <- if (file.exists(err_tmp)) paste(readLines(err_tmp, warn = FALSE), collapse = "\n") else ""
+  stop("tabix falhou (exit ", status_tabix, "):\n", msg)
 }
+file.remove(err_tmp)
 
 file.remove(lz_tsv)   # mantém apenas o .tsv.gz + .tbi
 cat("  LocalZoom: ", lz_gz, " + .tbi\n", sep = "")
