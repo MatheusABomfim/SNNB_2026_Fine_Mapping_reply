@@ -11,10 +11,10 @@
 # Output:
 #   - resultados/figuras/locuszoom_chr{chr}_{pos}.png  (um por locus)
 #
-# Dependências R (env quali):
-#   install.packages("locuszoomr")
-#   BiocManager::install(c("ensembldb", "EnsDb.Hsapiens.v112"))
-#   # v112 = GRCh38 (hg38). Ajuste ENS_DB conforme o banco instalado.
+# Dependências R (env locuszoom, via micromamba):
+#   micromamba create -n locuszoom -c conda-forge -c bioconda \
+#       r-locuszoomr bioconductor-ensdb.hsapiens.v86
+#   # v86 = GRCh38 (hg38), único EnsDb.hg38 no bioconda (v112 não existe)
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────── CONFIG ───────────────────────────
@@ -23,7 +23,7 @@ HITS_SIG    <- "resultados/tabelas/gwas_hits_significativos.csv"
 HITS_SUG    <- "resultados/tabelas/gwas_hits_sugestivos.csv"
 OUT_FIGURAS <- "resultados/figuras"
 
-ENS_DB      <- "EnsDb.Hsapiens.v112"   # GRCh38 (hg38); precisa estar instalado
+ENS_DB      <- "EnsDb.Hsapiens.v86"   # GRCh38 (hg38); via bioconda
 WINDOW_BP   <- 5e5                     # janela total (fix_window) centrada no SNP
 PCUTOFF     <- 5e-8                    # limiar de significância p/ colorir pontos
 SCHEME      <- c("grey", "dodgerblue", "red")  # normal, significativo, index

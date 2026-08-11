@@ -8,7 +8,7 @@
 
 # ─────────────────────────── CONFIG ───────────────────────────
 MICROMAMBA="/storage2/matheusbomfim/projects/micromamba/bin/micromamba"
-ENV_R="quali"           # env com R + locuszoomr + ensembldb + EnsDb.Hsapiens.v112
+ENV_R="locuszoom"       # env dedicado: r-locuszoomr + bioconductor-ensdb.hsapiens.v86
 # ───────────────────────────────────────────────────────────────
 
 cd "$PBS_O_WORKDIR" || exit 1
