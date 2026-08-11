@@ -29,7 +29,8 @@ LZ_BASE     <- "gwas_localzoom"          # base name do arquivo (tsv.gz + .tbi)
 
 ENS_DB      <- "EnsDb.Hsapiens.v86"   # GRCh38 (hg38); via bioconda
 WINDOW_BP   <- 5e5                     # janela total (fix_window) centrada no SNP
-PCUTOFF     <- 5e-8                    # limiar de significância p/ colorir pontos
+PCUTOFF     <- 5e-8                    # limiar de significância (genome-wide)
+SUG_CUTOFF  <- 1e-5                    # limiar de sugestivo
 SCHEME      <- c("grey", "dodgerblue", "red")  # normal, significativo, index
 # ───────────────────────────────────────────────────────────────
 
@@ -208,5 +209,113 @@ for (nm in names(lz)) {
 }
 cat("  No 'p-value' do mapeamento: use a coluna 'p' e responda 'Não' a '-log10',\n")
 cat("  ou use a coluna 'logp' e responda 'Sim'.\n")
+
+# ── 5. Manhattan dos hits com genes (significativos e sugestivos) ──────────────
+# Dois plots, cada um apenas com as variantes do respectivo threshold, rotuladas
+# com os genes anotados pelo VEP (04.4). ggplot2/ggrepel já são dependências do
+# locuszoomr, então estão disponíveis no env locuszoom.
+cat("\n[5] Manhattan plots (hits + genes acima do threshold)...\n")
+
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  library(ggplot2)
+  have_ggrepel <- requireNamespace("ggrepel", quietly = TRUE)
+  if (!have_ggrepel) cat("  AVISO: ggrepel indisponível — rótulos sem repulsão.\n")
+
+  # ---- posição genômica acumulada (chr 1-22, com gap) ----
+  manh <- gwas_raw[, .(chr, pos, id, p)]
+  manh[, chr_num := suppressWarnings(as.numeric(sub("^chr", "", chr)))]
+  manh[, pos := as.numeric(pos)]
+  manh[, logp := -log10(p)]
+  manh <- manh[!is.na(chr_num) & !is.na(pos) & is.finite(logp)]
+
+  chr_max <- manh[, .(maxp = max(pos)), by = chr_num][order(chr_num)]
+  gap <- round(0.02 * max(chr_max$maxp))
+  chr_max[, off := c(0, cumsum(maxp + gap)[- .N])]
+  manh <- merge(manh, chr_max[, .(chr_num, off)], by = "chr_num")
+  manh[, x := off + pos]
+  chr_center <- chr_max[, .(x = off + maxp / 2)]
+
+  # ---- genes por (chr,pos) a partir dos CSVs de hits (04.4/VEP) ----
+  genes_from_hits <- function(hits_file) {
+    if (!file.exists(hits_file)) return(NULL)
+    h <- fread(hits_file)
+    setnames(h, tolower(names(h)))
+    if (!all(c("chr", "pos", "symbol") %in% names(h))) return(NULL)
+    h[, chr_num := suppressWarnings(as.numeric(sub("^chr", "", chr)))]
+    h[, pos := as.numeric(pos)]
+    h[!is.na(chr_num) & !is.na(symbol) & symbol != "" & symbol != ".",
+      .(genes = paste(unique(symbol), collapse = "; ")), by = .(chr_num, pos)]
+  }
+  sig_genes <- genes_from_hits(HITS_SIG)
+  sug_genes <- genes_from_hits(HITS_SUG)
+
+  plot_manh <- function(dt, genes, out_png, title, thr_lines) {
+    if (is.null(genes)) {
+      dt[, genes := NA_character_]
+    } else {
+      dt <- merge(dt, genes, by = c("chr_num", "pos"), all.x = TRUE)
+    }
+    dt <- dt[order(x)]
+    p <- ggplot(dt, aes(x = x, y = logp)) +
+      geom_point(shape = 21, colour = "grey30", fill = "#D95F02",
+                 size = 2.2, alpha = 0.9) +
+      scale_x_continuous(breaks = chr_center$x, labels = chr_max$chr_num,
+                         expand = expansion(mult = 0.01)) +
+      xlab("Cromossomo") + ylab(expression(-log[10](p))) +
+      ggtitle(title) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            plot.title = element_text(hjust = 0.5, face = "bold"))
+    for (i in seq_len(nrow(thr_lines))) {
+      p <- p + geom_hline(yintercept = thr_lines$y[i], linetype = "dashed",
+                          colour = thr_lines$col[i])
+    }
+    lbl <- dt[!is.na(genes)]
+    if (nrow(lbl) > 0) {
+      if (have_ggrepel) {
+        p <- p + ggrepel::geom_text_repel(data = lbl, aes(label = genes),
+                                          size = 3.2, max.overlaps = 30,
+                                          min.segment.length = 0,
+                                          segment.colour = "grey40", seed = 42)
+      } else {
+        p <- p + geom_text(data = lbl, aes(label = genes), size = 3.2,
+                           nudge_y = 0.25, vjust = 0, angle = 30)
+      }
+    }
+    ggsave(out_png, p, width = 12, height = 7, dpi = 300)
+    cat("  ", basename(out_png), " (", nrow(dt), " SNPs, ", nrow(lbl), " rotulados)\n",
+        sep = "")
+  }
+
+  # thresholds: genômica (5e-8) e sugestiva (1e-5), destacando a relevante
+  thr_sig <- data.frame(y = c(-log10(PCUTOFF), -log10(SUG_CUTOFF)),
+                        col = c("firebrick", "grey50"))
+  thr_sug <- data.frame(y = c(-log10(PCUTOFF), -log10(SUG_CUTOFF)),
+                        col = c("grey60", "firebrick"))
+
+  # apenas hits significativos (P < 5e-8)
+  sig_dt <- manh[p < PCUTOFF]
+  if (nrow(sig_dt) > 0) {
+    cat("  Manhattan significativos (P < 5e-8):", nrow(sig_dt), "SNPs\n")
+    plot_manh(sig_dt, sig_genes,
+              file.path(OUT_FIGURAS, "manhattan_hits_significativos.png"),
+              "GWAS — Hits significativos (P < 5e-8)", thr_sig)
+  } else {
+    cat("  Sem hits significativos para plotar.\n")
+  }
+
+  # apenas sugestivos (5e-8 <= P < 1e-5)
+  sug_dt <- manh[p >= PCUTOFF & p < SUG_CUTOFF]
+  if (nrow(sug_dt) > 0) {
+    cat("  Manhattan sugestivos (5e-8 <= P < 1e-5):", nrow(sug_dt), "SNPs\n")
+    plot_manh(sug_dt, sug_genes,
+              file.path(OUT_FIGURAS, "manhattan_hits_sugestivos.png"),
+              "GWAS — Hits sugestivos (P < 1e-5)", thr_sug)
+  } else {
+    cat("  Sem hits sugestivos para plotar.\n")
+  }
+} else {
+  cat("  AVISO: ggplot2 indisponível no env — Manhattan pulado.\n")
+}
 
 cat("\nDone.\n")
