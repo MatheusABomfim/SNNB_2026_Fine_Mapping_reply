@@ -18,8 +18,13 @@ VCF Sarek (joint-calling, VEP+AlphaMissense)
   ├─► 03_pca_matching.R       PCA + knee plot (diagnóstico)
   ├─► 04_gwas_assoc.R         GWAS: QC → merge → PCA → matching → assoc PLINK2
   │      (produção: 04.3_assoc_prod.pbs → --firth --pca-match --match-k 1 --n-pcs 3)
+  ├─► 04.4_hits_gwas.R        → gwas_hits_significativos.csv / _sugestivos.csv
+  │                             (hits + anotação VEP por transcrito)
   ├─► 05_gwas_ssf.R           → gwas_ssf.tsv + YAML (GWAS-SSF v1.1)
-  └─► 05.5_prepara_exoma.R    → exoma_sumstats.txt (formato do 02_lookup_exoma.R)
+  ├─► 05.5_prepara_exoma.R    → exoma_sumstats.txt (formato do 02_lookup_exoma.R)
+  ├─► 06_locuszoom.R          → locuszoom_*.png (por locus) + gwas_localzoom.tsv.gz/.tbi
+  │                             (para LocalZoom) + Manhattan hits/sugestivos
+  └─► 07_circos_manhattan.R   → circos_plot.{pdf,png} + fig_circos_manhattan.{pdf,png}
 ```
 
 ## Inputs
@@ -35,8 +40,11 @@ VCF Sarek (joint-calling, VEP+AlphaMissense)
 |---|---|
 | 04 | `gwas/<timestamp>/SRR_gwas.assoc` (tabela limpa), plots, `gwas_report.txt` |
 | 04.3 | `gwas/gwas_prod/SRR_gwas.assoc` + `target.{bed,bim,fam}` — escrita direta via `--outdir gwas_prod` (sem cópia manual) |
+| 04.4 | `resultados/tabelas/gwas_hits_significativos.csv` + `gwas_hits_sugestivos.csv` (1 linha por variante×transcrito VEP) |
 | 05 | `gwas/gwas_prod/gwas_ssf.tsv` + `-meta.yaml` |
 | 05.5 | `gwas/gwas_prod/exoma_sumstats.txt` → copiar para `dados/exoma/exoma_sumstats.txt` |
+| 06 | `resultados/figuras/locuszoom_chr{chr}_{pos}.png`, `manhattan_hits_significativos.png`, `manhattan_hits_sugestivos.png`; `resultados/tabelas/gwas_localzoom.tsv.gz` + `.tbi` |
+| 07 | `resultados/figuras/circos_plot.{pdf,png}` (circos), `fig_circos_manhattan.{pdf,png}` (Manhattan completo) |
 
 ## Ordem de execução (cluster)
 
@@ -52,6 +60,13 @@ qsub 03_pca_matching.pbs
 # Produção:
 qsub 04.3_assoc_prod.pbs        # → gwas/gwas_prod/SRR_gwas.assoc
 qsub 05_gwas_ssf.pbs            # → gwas_ssf.tsv + YAML
+
+# Hits + anotação VEP (env quali):
+qsub 04.4_hits_gwas.pbs         # → resultados/tabelas/gwas_hits_{significativos,sugestivos}.csv
+
+# Figuras (env locuszoom):
+qsub 06_locuszoom.pbs           # → locuszoom_*.png + LocalZoom (.tsv.gz/.tbi) + Manhattan
+qsub 07_circos_manhattan.pbs    # → circos_plot.* + fig_circos_manhattan.*
 
 # Converter para o formato do MVP lookup:
 Rscript 05.5_prepara_exoma.R    # → exoma_sumstats.txt
@@ -71,3 +86,12 @@ Rscript scripts/02_lookup_exoma.R
   (`/storage2/matheusbomfim/projects/micromamba`, env `quali`).
 - Parâmetros de produção finais (match grid 04.2, ponto ótimo k1 pc3):
   `--firth --pca-match --match-k 1 --n-pcs 3` (λ GC 1.2417).
+- **Env `locuszoom`** (06/07): `micromamba create -n locuszoom -c conda-forge -c bioconda r-locuszoomr r-circlize r-ggplot2 r-ggrepel tabix` e instalar o `bioconductor-ensembldb`/`bioconductor-ensdb.hsapiens.v86` (necessário pelo `locuszoomr`). O 07 também precisa de `r-circlize` e (opcionalmente) `r-gridgraphics`.
+- **Gene canônico dos rótulos**: o CSQ do VEP/AlphaMissense do Sarek não grava o
+  campo `CANONICAL`, então o gene por locus é derivado do próprio CSV de hits:
+  transcrito de **maior IMPACT** (HIGH > MODERATE > LOW > MODIFIER), desempate
+  pelo `transcript_index` menor (ordem do VEP = consequência mais grave primeiro).
+- **LocalZoom**: o `06_locuszoom.R` exporta `gwas_localzoom.tsv.gz` + `.tbi`
+  (header simples, ordenado, `tabix --skip-lines 1`). No site
+  `https://statgen.github.io/localzoom/`, arrastar os DOIS arquivos e mapear as
+  colunas (chrom, pos, ref, alt, id, beta, p, logp — indicadas no log).

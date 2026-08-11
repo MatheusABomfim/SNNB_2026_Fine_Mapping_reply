@@ -26,28 +26,11 @@ Pipeline GWAS do exoma (pipeline_gwas/)
     ├─► 02_subsample_debug              (debug chr22, 50+50)
     ├─► 03_pca_matching                 (PCA + knee plot)
     ├─► 04_gwas_assoc (04.3 produção)   → SRR_gwas.assoc + target
+    ├─► 04.4_hits_gwas                  → gwas_hits_{significativos,sugestivos}.csv (VEP)
     ├─► 05_gwas_ssf                     → gwas_ssf.tsv + YAML
-    └─► 05.5_prepara_exoma              → exoma_sumstats.txt
-                                              │
-                                              ▼
-MVP fine-mapping (GCST90479802)
-  ├─► 01_filtrar_mvp.R        sinais de câncer de mama (Biological Mother)
-  │         └─► bc_signal.csv
-  │
-  ▼
-02_lookup_exoma.R  ──►  match por rsID nas sumstats do exoma
-  │                     classificação: Replicada / Direcao_consistente / Discordante / Nao_genotipada
-  │                     └─► lookup_completo.csv
-  ├─► 03_verifica_cobertura_exoma.R checagem de cobertura das regiões no exoma
-  ├─► 04.1_prepara_glimpse.pbs        gera inputs da imputação (janelas, sites, bams)
-  ├─► 04.2_imputa_glimpse.pbs          imputação GLIMPSE2 dos sinais (env imputacao)
-  │         └─► 04.3_associa_glimpse.R associação dirigida + classificação de direção
-  ├─► 05_analise_ancestralidade.R   (AFR / AMR / EUR)
-  ├─► 06_tabelas_finais.R           tabelas 1-4 do artigo
-  ├─► 07_locus_plots.R              locus plots dos top loci
-  └─► 08_scatter_plot.R             scatter direção do efeito MVP × exoma
-
-MAGMA (gene-level)  →  colaborador (etapa futura), output em resultados/magma/
+    ├─► 05.5_prepara_exoma              → exoma_sumstats.txt
+    ├─► 06_locuszoom                    → locuszoom_*.png + LocalZoom (.tsv.gz/.tbi)
+    └─► 07_circos_manhattan             → circos_plot.* + fig_circos_manhattan.*
 ```
 
 ## Estrutura
@@ -61,8 +44,8 @@ dados/
 scripts/          # validação MVP×exoma: 01_filtrar_mvp.R ... 08_scatter_plot.R
 resultados/
 ├── glimpse/      # output do passo 04 (regioes/bams/split/impute/ligate) — cluster
-├── tabelas/      # tabela1_consistentes, tabela2_discordantes, tabela3_novos_candidatos, tabela4_magma_genes
-├── figuras/      # locus_plot_*.png, scatter_direcao.png
+├── tabelas/      # gwas_hits_*.csv, gwas_localzoom.tsv.gz/.tbi, tabela1_consistentes, tabela2_discordantes, tabela3_novos_candidatos, tabela4_magma_genes
+├── figuras/      # locuszoom_*.png, manhattan_hits_*.png, circos_plot.*, fig_circos_manhattan.*, locus_plot_*.png, scatter_direcao.png
 └── magma/        # exoma.genes.out (colaborador)
 artigo/           # manuscript.md
 ```
@@ -76,7 +59,12 @@ artigo/           # manuscript.md
 qsub pipeline_gwas/04.3_assoc_prod.pbs  # → gwas/gwas_prod/SRR_gwas.assoc
 qsub pipeline_gwas/05_gwas_ssf.pbs       # → gwas_ssf.tsv + YAML
 
-# b) converter para o formato do MVP lookup:
+# b) hits + anotação VEP e figuras (env locuszoom p/ 06/07):
+qsub pipeline_gwas/04.4_hits_gwas.pbs    # → resultados/tabelas/gwas_hits_*.csv
+qsub pipeline_gwas/06_locuszoom.pbs      # → locuszoom_*.png + LocalZoom (.tsv.gz/.tbi) + Manhattan
+qsub pipeline_gwas/07_circos_manhattan.pbs  # → circos_plot.* + fig_circos_manhattan.*
+
+# c) converter para o formato do MVP lookup:
 Rscript pipeline_gwas/05.5_prepara_exoma.R   # → dados/exoma/exoma_sumstats.txt
 ```
 
@@ -116,8 +104,9 @@ então devem ser submetidos **dentro de `scripts/`**. A ordem é importante:
 
 | Env | Uso |
 |---|---|
-| `quali` | R (01–08, exceto 04) e o pipeline GWAS (`pipeline_gwas/`) |
+| `quali` | R (01–08, exceto 04) e o pipeline GWAS (`pipeline_gwas/` 01–05, 04.4) |
 | `imputacao` | ferramentas de imputação: SHAPEIT5, GLIMPSE2, bcftools, samtools, plink2 |
+| `locuszoom` | figuras de loci (`pipeline_gwas/06_locuszoom.R` e `07_circos_manhattan.R`): locuszoomr, EnsDb.Hsapiens.v86, circlize, tabix, ggplot2, ggrepel |
 
 O env `imputacao` é criado por `scripts/setup_imputacao_env.sh` (não é o `quali`).
 O passo 04 usa os dois: `04.2_imputa_glimpse.pbs` roda a imputação com `imputacao` e
