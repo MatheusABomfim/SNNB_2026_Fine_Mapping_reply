@@ -148,12 +148,13 @@ lz[, chr := as.character(chr_num)]         # gravar chr numérico no arquivo
 setkey(lz, chr_num, pos)
 lz[, chr_num := NULL]
 
-# Header deve começar com "#" para o tabix ignorá-lo automaticamente.
+# Header padrão (sem "#"), nomes limpos para a auto-detecção do LocalZoom.
+# O tabix pula a 1ª linha via --skip-lines 1 (recomendado pela doc do LocalZoom).
 # lz já herda os nomes corretos de lz_cols; basta renomear chr -> chrom.
 setnames(lz, "chr", "chrom")
 
 lz_tsv <- file.path(OUT_TABELAS, paste0(LZ_BASE, ".tsv"))
-writeLines(paste0("#", paste(names(lz), collapse = "\t")), lz_tsv)
+writeLines(paste(names(lz), collapse = "\t"), lz_tsv)
 fwrite(lz, lz_tsv, sep = "\t", col.names = FALSE, append = TRUE, quote = FALSE)
 cat("  TSV:", lz_tsv, "\n")
 
@@ -175,7 +176,8 @@ if (!identical(as.integer(status_bgzip), 0L)) {
   stop("bgzip falhou (exit ", status_bgzip, "):\n", msg)
 }
 status_tabix <- system2("tabix",
-                        args = c("-f", "-s", "1", "-b", "2", "-e", "2", lz_gz),
+                        args = c("-f", "-s", "1", "-b", "2", "-e", "2",
+                                 "-S", "1", lz_gz),
                         stderr = err_tmp)
 if (!identical(as.integer(status_tabix), 0L)) {
   msg <- if (file.exists(err_tmp)) paste(readLines(err_tmp, warn = FALSE), collapse = "\n") else ""
