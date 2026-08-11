@@ -148,8 +148,9 @@ lz[, chr := as.character(chr_num)]         # gravar chr numérico no arquivo
 setkey(lz, chr_num, pos)
 lz[, chr_num := NULL]
 
-# Header deve começar com "#" para o tabix ignorá-lo automaticamente
-setnames(lz, c("chrom", "pos", "ref", "alt", "id", "a1_freq", "beta", "se", "p", "logp")[seq_along(lz_cols)])
+# Header deve começar com "#" para o tabix ignorá-lo automaticamente.
+# lz já herda os nomes corretos de lz_cols; basta renomear chr -> chrom.
+setnames(lz, "chr", "chrom")
 
 lz_tsv <- file.path(OUT_TABELAS, paste0(LZ_BASE, ".tsv"))
 writeLines(paste0("#", paste(names(lz), collapse = "\t")), lz_tsv)
@@ -183,8 +184,27 @@ if (!identical(as.integer(status_tabix), 0L)) {
 file.remove(err_tmp)
 
 file.remove(lz_tsv)   # mantém apenas o .tsv.gz + .tbi
-cat("  LocalZoom: ", lz_gz, " + .tbi\n", sep = "")
-cat("  Uso: abrir https://statgen.github.io/localzoom/ e arrastar os dois arquivos.\n")
-cat("  Mapear colunas: chrom=1, pos=2, ref=3, alt=4, id=5, a1_freq=6, beta=7, se=8, p=9, logp=10\n")
+cat("\n=== Export para LocalZoom (https://statgen.github.io/localzoom/) ===\n")
+cat("Arquivos: ", lz_gz, " + .tbi\n", sep = "")
+cat("Uso: abrir a página, arrastar os DOIS arquivos e mapear as colunas abaixo.\n")
+lz_fields <- c(
+  chrom   = "cromossomo",
+  pos     = "posição (bp)",
+  ref     = "alelo de referência",
+  alt     = "alelo alternativo (effect allele)",
+  id      = "ID do SNP",
+  beta    = "efeito (beta)",
+  a1_freq = "frequência do effect allele",
+  se      = "erro padrão (se)",
+  p       = "p-value (bruto)",
+  logp    = "p-value em -log10"
+)
+cat("  Mapeamento das colunas do arquivo:\n")
+for (nm in names(lz)) {
+  desc <- if (nm %in% names(lz_fields)) lz_fields[[nm]] else "(coluna extra)"
+  cat(sprintf("    coluna %-2d  %-8s = %s\n", which(names(lz) == nm), nm, desc))
+}
+cat("  No 'p-value' do mapeamento: use a coluna 'p' e responda 'Não' a '-log10',\n")
+cat("  ou use a coluna 'logp' e responda 'Sim'.\n")
 
 cat("\nDone.\n")
