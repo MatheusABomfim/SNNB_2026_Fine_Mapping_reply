@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -N 06-locuszoom
+#PBS -e 06-locuszoom.err
+#PBS -o 06-locuszoom.log
+#PBS -q workq
+#PBS -l nodes=1:ppn=2
+#PBS -l walltime=02:00:00
+
+# ─────────────────────────── CONFIG ───────────────────────────
+MICROMAMBA="/storage2/matheusbomfim/projects/micromamba/bin/micromamba"
+ENV_R="quali"           # env com R + locuszoomr + ensembldb + EnsDb.Hsapiens.v112
+# ───────────────────────────────────────────────────────────────
+
+cd "$PBS_O_WORKDIR" || exit 1
+export MAMBA_ROOT_PREFIX=/storage2/matheusbomfim/projects/micromamba
+
+echo "=========================================="
+echo "06_locuszoom.pbs (Locus zoom plots dos hits GWAS)"
+echo "Start time: $(date)"
+echo "Working directory: $(pwd)"
+echo "=========================================="
+
+"$MICROMAMBA" run -n "$ENV_R" Rscript 06_locuszoom.R
+
+EXIT_CODE=$?
+echo "=========================================="
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "SUCCESS: 06_locuszoom.R completed at $(date)"
+else
+    echo "FAILURE: 06_locuszoom.R exited with code $EXIT_CODE at $(date)"
+fi
+echo "=========================================="
