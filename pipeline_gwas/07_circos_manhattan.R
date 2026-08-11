@@ -146,7 +146,7 @@ have_circos <- requireNamespace("circlize", quietly = TRUE)
 have_gridg  <- requireNamespace("gridGraphics", quietly = TRUE)
 
 draw_circos <- function(manh, chr_max, sig_hits) {
-  library(circlize)
+  suppressPackageStartupMessages(library(circlize))
   chrlens <- chr_max[, .(chr_num, maxp)]
   maxlogp <- max(manh$logp)
 
@@ -160,10 +160,10 @@ draw_circos <- function(manh, chr_max, sig_hits) {
                panel.fun = function(x, y) {
                  i <- get.cell.meta.data("sector.numeric.index")
                  col <- if (i %% 2 == 1) "#2C3E50" else "#95A5A6"
-                 circos.rect(CELL_META$xleft, CELL_META$ybottom,
-                             CELL_META$xright, CELL_META$ytop,
+                 circos.rect(CELL_META$cell.xlim[1], CELL_META$cell.ylim[1],
+                             CELL_META$cell.xlim[2], CELL_META$cell.ylim[2],
                              col = col, border = NA)
-                 circos.text(CELL_META$xcenter, CELL_META$ymidpoint,
+                 circos.text(CELL_META$xcenter, CELL_META$ycenter,
                              get.cell.meta.data("sector.index"),
                              cex = 0.6, font = 2, col = "white",
                              facing = "downward")
@@ -180,8 +180,8 @@ draw_circos <- function(manh, chr_max, sig_hits) {
                          fifelse(df$p < SUG_CUTOFF, "#FF7F00",
                            fifelse(df$chr_num %% 2 == 1, "#4477AA", "#BBCCEE")))
                  circos.points(df$pos, df$logp, pch = 16, cex = 0.3, col = col)
-                 circos.segments(CELL_META$xleft, -log10(PCUTOFF),
-                                 CELL_META$xright, -log10(PCUTOFF),
+                 circos.segments(CELL_META$cell.xlim[1], -log10(PCUTOFF),
+                                 CELL_META$cell.xlim[2], -log10(PCUTOFF),
                                  col = "#E31A1C", lty = 2, lwd = 0.6)
                })
 
@@ -246,18 +246,29 @@ if (have_circos) {
   }
 
   if (!isTRUE(combined_ok)) {
-    # fallback: painéis separados
-    pdf(file.path(OUT_FIGURAS, "circos_plot.pdf"), width = 7, height = 7)
-    draw_circos(manh, chr_max, sig_hits)
-    dev.off()
-    circos.clear()
-    cat("  circos_plot.pdf salvo.\n")
+    # fallback: painéis separados (circos protegido por tryCatch)
+    circos_ok <- tryCatch({
+      pdf(file.path(OUT_FIGURAS, "circos_plot.pdf"), width = 7, height = 7)
+      draw_circos(manh, chr_max, sig_hits)
+      dev.off()
+      circos.clear()
+      cat("  circos_plot.pdf salvo.\n")
+      TRUE
+    }, error = function(e) {
+      if (dev.cur() > 1) dev.off()
+      try(circos.clear(), silent = TRUE)
+      cat("  AVISO: circos falhou no fallback (", conditionMessage(e), ").\n", sep = "")
+      FALSE
+    })
     if (!is.null(p_manh)) {
       ggsave(file.path(OUT_FIGURAS, "manhattan_completo.png"), p_manh,
              width = 10, height = 6, dpi = 300)
       ggsave(file.path(OUT_FIGURAS, "manhattan_completo.pdf"), p_manh,
              width = 10, height = 6)
       cat("  manhattan_completo.png/.pdf salvos.\n")
+    }
+    if (!isTRUE(circos_ok)) {
+      cat("  AVISO: nenhuma figura de circos gerada (circos indisponível/falhou).\n")
     }
   }
 } else {
