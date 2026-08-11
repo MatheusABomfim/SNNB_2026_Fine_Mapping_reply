@@ -143,7 +143,7 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 # ── 5. Circos à esquerda (circlize) ────────────────────────────────────────────
 cat("[5] Circos plot (esquerda)...\n")
 have_circos <- requireNamespace("circlize", quietly = TRUE)
-have_gridg  <- requireNamespace("gridGraphics", quietly = TRUE)
+have_png    <- requireNamespace("png", quietly = TRUE)
 
 draw_circos <- function(manh, chr_max, sig_hits) {
   suppressPackageStartupMessages(library(circlize))
@@ -202,74 +202,66 @@ draw_circos <- function(manh, chr_max, sig_hits) {
 sig_hits <- manh[p < PCUTOFF & !is.na(genes)]
 
 if (have_circos) {
-  if (have_gridg) {
-    combined_ok <- tryCatch({
-      tmp_pdf <- tempfile(fileext = ".pdf")
-      pdf(tmp_pdf, width = 7, height = 7)
-      draw_circos(manh, chr_max, sig_hits)
-      gridGraphics::grid.echo()
-      g_circos <- grid::grid.grab()
-      dev.off()
-      unlink(tmp_pdf)
-      circos.clear()
+  # Renderiza o circos em arquivos próprios (PDF vetorial + PNG alta resolução).
+  # Sempre abre device antes de desenhar (evita Rplots.pdf).
+  circos_ok <- tryCatch({
+    pdf(file.path(OUT_FIGURAS, "circos_plot.pdf"), width = 7, height = 7)
+    draw_circos(manh, chr_max, sig_hits)
+    dev.off()
+    circos.clear()
+    png(file.path(OUT_FIGURAS, "circos_plot.png"),
+        width = 2100, height = 2100, res = 300)
+    draw_circos(manh, chr_max, sig_hits)
+    dev.off()
+    circos.clear()
+    cat("  circos_plot.pdf + circos_plot.png salvos.\n")
+    TRUE
+  }, error = function(e) {
+    if (dev.cur() > 1) dev.off()
+    try(circos.clear(), silent = TRUE)
+    cat("  AVISO: circos falhou (", conditionMessage(e), ").\n", sep = "")
+    FALSE
+  })
 
+  if (isTRUE(circos_ok) && !is.null(p_manh) && have_png) {
+    # Figura combinada: circos (raster) à esquerda + Manhattan (vetorial) à direita
+    combined_ok <- tryCatch({
+      library(ggplot2)
+      img <- png::readPNG(file.path(OUT_FIGURAS, "circos_plot.png"))
+      p_circos <- ggplot() +
+        annotation_custom(grid::rasterGrob(img, interpolate = TRUE),
+                          xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
+        coord_fixed() + theme_void()
       library(cowplot)
-      left_panel <- ggdraw() + draw_grob(g_circos)
-      if (is.null(p_manh)) {
-        cat("  AVISO: sem Manhattan (ggplot2 ausente) — salvando só circos.\n")
-        ggsave(file.path(OUT_FIGURAS, "circos_plot.pdf"), left_panel,
-               width = 7, height = 7)
-        ggsave(file.path(OUT_FIGURAS, "circos_plot.png"), left_panel,
-               width = 7, height = 7, dpi = 300)
-        cat("  circos_plot.pdf/.png salvos.\n")
-        TRUE
-      } else {
-        p_comb <- plot_grid(left_panel, p_manh, ncol = 2,
-                            rel_widths = c(0.38, 0.62))
-        out_pdf <- file.path(OUT_FIGURAS, "fig_circos_manhattan.pdf")
-        out_png <- file.path(OUT_FIGURAS, "fig_circos_manhattan.png")
-        ggsave(out_pdf, p_comb, width = 14, height = 7)
-        ggsave(out_png, p_comb, width = 14, height = 7, dpi = 300)
-        cat("  fig_circos_manhattan.pdf + .png salvos.\n")
-        TRUE
-      }
+      p_comb <- plot_grid(p_circos, p_manh, ncol = 2,
+                          rel_widths = c(0.38, 0.62))
+      out_pdf <- file.path(OUT_FIGURAS, "fig_circos_manhattan.pdf")
+      out_png <- file.path(OUT_FIGURAS, "fig_circos_manhattan.png")
+      ggsave(out_pdf, p_comb, width = 14, height = 7)
+      ggsave(out_png, p_comb, width = 14, height = 7, dpi = 300)
+      cat("  fig_circos_manhattan.pdf + .png salvos.\n")
+      TRUE
     }, error = function(e) {
       if (dev.cur() > 1) dev.off()
-      try(circos.clear(), silent = TRUE)
       cat("  AVISO: falha na combinação (", conditionMessage(e),
           ") — salvando painéis separados.\n", sep = "")
       FALSE
     })
-  } else {
-    cat("  AVISO: gridGraphics ausente — salvando painéis separados.\n")
-    combined_ok <- FALSE
-  }
+        } else {
+            combined_ok <- FALSE
+            if (is.null(p_manh)) {
+                cat("  AVISO: ggplot2 indisponível — sem figura combinada (apenas circos).\n")
+            } else if (!have_png) {
+                cat("  AVISO: pacote 'png' ausente — combinada não gerada (use: micromamba install -n locuszoom r-png).\n")
+            }
+        }
 
-  if (!isTRUE(combined_ok)) {
-    # fallback: painéis separados (circos protegido por tryCatch)
-    circos_ok <- tryCatch({
-      pdf(file.path(OUT_FIGURAS, "circos_plot.pdf"), width = 7, height = 7)
-      draw_circos(manh, chr_max, sig_hits)
-      dev.off()
-      circos.clear()
-      cat("  circos_plot.pdf salvo.\n")
-      TRUE
-    }, error = function(e) {
-      if (dev.cur() > 1) dev.off()
-      try(circos.clear(), silent = TRUE)
-      cat("  AVISO: circos falhou no fallback (", conditionMessage(e), ").\n", sep = "")
-      FALSE
-    })
-    if (!is.null(p_manh)) {
-      ggsave(file.path(OUT_FIGURAS, "manhattan_completo.png"), p_manh,
-             width = 10, height = 6, dpi = 300)
-      ggsave(file.path(OUT_FIGURAS, "manhattan_completo.pdf"), p_manh,
-             width = 10, height = 6)
-      cat("  manhattan_completo.png/.pdf salvos.\n")
-    }
-    if (!isTRUE(circos_ok)) {
-      cat("  AVISO: nenhuma figura de circos gerada (circos indisponível/falhou).\n")
-    }
+  if (!isTRUE(combined_ok) && !is.null(p_manh)) {
+    ggsave(file.path(OUT_FIGURAS, "manhattan_completo.png"), p_manh,
+           width = 10, height = 6, dpi = 300)
+    ggsave(file.path(OUT_FIGURAS, "manhattan_completo.pdf"), p_manh,
+           width = 10, height = 6)
+    cat("  manhattan_completo.png/.pdf salvos.\n")
   }
 } else {
   cat("  AVISO: circlize indisponível — apenas Manhattan.\n")
@@ -279,5 +271,8 @@ if (have_circos) {
     cat("  manhattan_completo.png salvo.\n")
   }
 }
+
+# limpeza: nunca deixar Rplots.pdf (default device) no working dir
+if (file.exists("Rplots.pdf")) unlink("Rplots.pdf")
 
 cat("\nDone.\n")
